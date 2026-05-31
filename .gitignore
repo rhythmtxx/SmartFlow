@@ -1,0 +1,26 @@
+# API Key 配置，绝对不能提交
+config.yaml
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 运行时生成的数据（对话历史、输出文件）
+workspace/memory/
+workspace/outputs/
+
+# 个人文件
+*.png
+*.jpg
+!logo.jpg
+
+# Claude Code 内部文件
+.claude/
+
+# 虚拟环境
+venv/
+.venv/
+env/
