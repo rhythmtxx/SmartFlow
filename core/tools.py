@@ -239,9 +239,60 @@ class ShellTool(BaseTool):
                 return "错误: 命令被安全策略拦截 (检测到危险模式)"
         return None
 
+
+class SearchKnowledgeTool(BaseTool):
+    """
+    知识库检索工具（RAG）。
+    在已导入的本地文档中检索与问题最相关的内容片段，
+    帮助 Agent 回答私域知识问题，减少幻觉。
+    """
+    def __init__(self, knowledge_base):
+        super().__init__(
+            name="search_knowledge",
+            description=(
+                "在本地知识库中检索与问题相关的内容。"
+                "当用户询问已上传文档中的内容时使用此工具。"
+                "返回最相关的文本片段及其来源文件。"
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "要检索的问题或关键词"
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "返回最相关的片段数量，默认 3",
+                        "default": 3
+                    }
+                },
+                "required": ["query"]
+            },
+            risk_level="low"  # 只读检索，无副作用
+        )
+        self.kb = knowledge_base
+
+    async def execute(self, query: str, top_k: int = 3) -> str:
+        import asyncio
+        # 向量检索是 CPU 密集型操作，用 to_thread 避免阻塞事件循环
+        results = await asyncio.to_thread(self.kb.search, query, top_k)
+
+        if not results:
+            return "知识库为空或未找到相关内容。请先上传相关文档。"
+
+        # 格式化输出，让大模型容易理解
+        parts = [f"检索到 {len(results)} 条相关内容：\n"]
+        for i, r in enumerate(results, 1):
+            parts.append(
+                f"【片段 {i}】来源：{r['source']}（相似度：{r['score']:.2f}）\n{r['text']}"
+            )
+        return "\n\n".join(parts)
+
+
 class ToolRegistry:
     """工具注册中心，负责管理和执行所有工具"""
-    def __init__(self):
+    def __init__(self, knowledge_base=None):
         self.tools: Dict[str, BaseTool] = {}
         # 默认注册基础的文件操作工具
         self.register(ReadFileTool())
@@ -249,6 +300,9 @@ class ToolRegistry:
         self.register(EditFileTool())
         # 注册 Shell 工具
         self.register(ShellTool())
+        # 注册 RAG 知识库检索工具（需要传入 KnowledgeBase 实例）
+        if knowledge_base is not None:
+            self.register(SearchKnowledgeTool(knowledge_base))
 
     def register(self, tool: BaseTool):
         """注册一个新工具"""

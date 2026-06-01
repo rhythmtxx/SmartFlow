@@ -170,6 +170,46 @@ async def clear_memory():
     agent.clear_memory()
     return {"status": "ok"}
 
+@app.post("/api/knowledge/add")
+async def add_to_knowledge(file: UploadFile = File(...)):
+    """
+    上传文档到知识库（RAG）。
+    支持 .txt / .md 格式。文档会被切片、向量化并存入本地向量数据库。
+    """
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in [".txt", ".md"]:
+        return {"status": "error", "message": "仅支持 .txt 和 .md 格式"}
+
+    # 先保存到 outputs 目录，再导入知识库
+    save_path = os.path.join(outputs_path, file.filename)
+    try:
+        content = await file.read()
+        with open(save_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        return {"status": "error", "message": f"文件保存失败: {e}"}
+
+    result = agent.knowledge.add_document(save_path)
+    if result["success"]:
+        return {
+            "status": "ok",
+            "file": result["file"],
+            "chunks": result["chunks"],
+            "message": f"成功导入 {result['chunks']} 个文本片段"
+        }
+    return {"status": "error", "message": result.get("error", "导入失败")}
+
+@app.get("/api/knowledge/stats")
+async def knowledge_stats():
+    """获取知识库统计信息"""
+    return agent.knowledge.get_stats()
+
+@app.delete("/api/knowledge/clear")
+async def clear_knowledge():
+    """清空知识库"""
+    agent.knowledge.clear()
+    return {"status": "ok", "message": "知识库已清空"}
+
 if __name__ == "__main__":
     import uvicorn
     logging.info("Starting Tiny Agent server on http://localhost:8000")

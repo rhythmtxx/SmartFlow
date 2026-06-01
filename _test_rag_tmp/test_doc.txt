@@ -1,0 +1,2 @@
+SmartFlow 是一个轻量级 AI Agent 框架。
+它支持 ReAct 循环和 HITL 人工审批机制。

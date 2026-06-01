@@ -8,6 +8,7 @@ from .skills import SkillsLoader
 from .memory import MemoryStore
 from .context import ContextBuilder
 from .loop import AgentLoop
+from .knowledge import KnowledgeBase
 
 class TinyAgent:
     """
@@ -39,7 +40,8 @@ class TinyAgent:
         # 初始化四大核心金刚
         self.memory = MemoryStore(workspace_dir)
         self.skills = SkillsLoader(workspace_dir)
-        self.tools = ToolRegistry()
+        self.knowledge = KnowledgeBase(workspace_dir)
+        self.tools = ToolRegistry(knowledge_base=self.knowledge)
         self.context = ContextBuilder(self.memory, self.skills, workspace_dir)
         # 人工审批管理器（Human-in-the-Loop）：高风险工具执行前请求用户确认
         self.approval_manager = ApprovalManager()
