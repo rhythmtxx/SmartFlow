@@ -1,75 +1,110 @@
 <p align="center">
-  <img src="./logo.jpg" width="120" alt="TinyAgent Logo" />
+  <img src="./logo.jpg" width="120" alt="SmartFlow Logo" />
 </p>
 
-<h1 align="center">TinyAgent</h1>
+<h1 align="center">SmartFlow</h1>
 
 <p align="center">
-  <strong>6 个文件，1 个能用的 AI Agent</strong><br/>
-  用最少的代码理解 Agent 的本质
+  <strong>轻量级 AI Agent 框架，内置 Human-in-the-Loop 人工审批机制</strong><br/>
+  用最少的代码，实现生产可用的 Agent 核心能力
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python" />
   <img src="https://img.shields.io/badge/framework-FastAPI-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
   <img src="https://img.shields.io/badge/LLM-OpenAI%20Compatible-412991?style=flat-square&logo=openai" alt="LLM" />
-  <img src="https://img.shields.io/badge/lines-~700-green?style=flat-square" alt="Lines" />
+  <img src="https://img.shields.io/badge/feature-HITL%20Approval-ff6b35?style=flat-square" alt="HITL" />
 </p>
 
 ---
 
-## ✨ 什么是 TinyAgent
+## ✨ 项目简介
 
-TinyAgent 是一个 **最小可运行的 AI Agent 实现**。它不是框架，而是一份可以直接跑起来的教学级源码——用 6 个 Python 文件、不到 700 行代码，完整实现了：
+SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Acting）模式，支持大模型自主决策多轮工具调用。
 
-- 🔄 **流式对话** — SSE 实时推送，逐字输出
-- 🛠️ **Tool Calling** — 多轮工具调用 + 防死循环保险丝
-- 🧠 **对话记忆** — 短期历史窗口 + 长期 Markdown 记忆
-- 📦 **技能插件** — 放一个 `SKILL.md` 文件即装即用
-- 🔒 **安全防护** — Shell 高危命令正则拦截
+在标准 Agent 能力之上，SmartFlow 原创实现了 **Human-in-the-Loop（HITL）人工审批机制**：当 Agent 想执行高风险操作（如 Shell 命令）时，自动暂停并向用户弹出审批窗口，用户确认后才继续执行，从根本上解决 Agent 失控问题。
 
-## 🏗️ 项目结构
+## 🏗️ 核心架构
 
 ```
-tiny_agent/
-├── app.py              # FastAPI 入口，HTTP 路由 + SSE
-├── config.yaml         # LLM 配置（API Key、模型、地址）
-├── requirements.txt    # Python 依赖
-├── static/             # 前端静态资源
-├── workspace/          # 运行时工作区
-│   ├── memory/         #   对话记忆存储
-│   ├── skills/         #   技能插件目录
-│   └── outputs/        #   文件输出目录
-└── core/               # 核心模块
-    ├── agent.py        #   总指挥，组装所有组件
-    ├── loop.py         #   事件循环，流式 Tool Calling
-    ├── tools.py        #   工具注册与执行
-    ├── memory.py       #   短期 + 长期记忆管理
-    ├── skills.py       #   Markdown 技能加载器
-    └── context.py      #   上下文 & 系统提示词组装
+用户消息 → ContextBuilder 组装上下文 → AgentLoop 调用 LLM
+                                              ↓
+                                        模型返回文本？→ 流式输出给用户
+                                        模型要用工具？→ 检查风险等级
+                                              ↓
+                                        低/中风险 → ToolRegistry 直接执行
+                                        高风险    → 触发 HITL 审批
+                                              ↓
+                                        用户同意 → 执行工具 → 结果注入上下文
+                                        用户拒绝 → 跳过工具 → 告知模型
+                                              ↓
+                                        循环直到模型完成 → MemoryStore 保存
 ```
+
+## 🔒 Human-in-the-Loop 审批机制
+
+SmartFlow 的核心原创功能。基于 `asyncio.Event` 实现异步审批等待，不阻塞其他用户请求。
+
+**工具风险分级：**
+
+| 等级 | 工具 | 处理方式 |
+|---|---|---|
+| `low` | read_file | 直接执行 |
+| `medium` | write_file、edit_file | 直接执行 |
+| `high` | exec（Shell 命令） | 弹窗等待用户审批 |
+
+**审批流程：**
+
+```
+Agent 触发高风险工具
+      ↓
+SSE 推送 approval_required 事件 → 前端弹出审批窗口
+      ↓
+asyncio.Event 挂起当前协程（不阻塞服务器）
+      ↓
+用户点击同意/拒绝 → POST /api/approve
+      ↓
+event.set() 唤醒协程 → 根据结果执行或跳过工具
+```
+
+超时（默认 60 秒）自动拒绝，安全兜底。
+
+## 🛠️ 完整功能列表
+
+- **ReAct 循环引擎** — 大模型自主决策多轮工具调用，`max_iterations=10` 防死循环
+- **流式输出** — AsyncGenerator + SSE 全链路流式，首字响应 < 1s
+- **流式 Tool Call 解析** — 碎片化 tool_call 拼接，兼容 OpenAI / DeepSeek / 通义千问等多后端
+- **HITL 人工审批** — 高风险工具执行前弹窗确认，asyncio.Event 异步等待
+- **对话记忆** — 短期历史窗口（安全截断，保证工具调用链完整）+ 长期 Markdown 记忆
+- **技能插件系统** — 放一个 `SKILL.md` 即装即用，两档加载策略节省 token
+- **安全防护** — Shell 命令黑名单 + 执行超时 + 输出截断
 
 ## 🚀 快速开始
 
 ### 1. 安装依赖
 
 ```bash
-cd tiny_agent
 pip install -r requirements.txt
 ```
 
 ### 2. 配置 LLM
 
-编辑 `config.yaml`，填入你的 API 信息：
+复制配置模板并填入你的 API 信息：
+
+```bash
+cp config.yaml.example config.yaml
+```
+
+编辑 `config.yaml`：
 
 ```yaml
 llm:
-  api_key: "your-api-key-here"
-  model: "gpt-4o-mini"           # 或 qwen-plus, deepseek-chat 等
-  base_url: "https://api.openai.com/v1"  # 兼容 OpenAI 格式的地址
+  api_key: "your-api-key"
+  model: "deepseek-chat"
+  base_url: "https://api.deepseek.com/v1"
 ```
 
-> 支持所有 OpenAI 兼容 API：OpenAI、通义千问、DeepSeek、智谱 GLM 等。
+支持所有 OpenAI 兼容 API：OpenAI、DeepSeek、通义千问、Infini-AI 等。
 
 ### 3. 启动服务
 
@@ -77,82 +112,57 @@ llm:
 python app.py
 ```
 
-访问 `http://localhost:8000` 即可开始对话。
+访问 `http://localhost:8000` 开始对话。
 
-## 🧩 核心架构
+试着发送：**"帮我执行 echo hello world"**，体验 HITL 审批弹窗。
+
+## 📁 项目结构
 
 ```
-用户消息 → ContextBuilder 组装上下文 → AgentLoop 调用 LLM
-                                          ↓
-                                    模型返回文本？→ 流式输出给用户
-                                    模型要用工具？→ ToolRegistry 执行
-                                          ↓
-                                    结果注入上下文 → 再次调用 LLM
-                                          ↓
-                                    循环直到模型说完 → MemoryStore 保存
+SmartFlow/
+├── app.py              # FastAPI 入口，HTTP 路由 + SSE
+├── config.yaml.example # LLM 配置模板
+├── requirements.txt    # Python 依赖
+├── test_hitl.py        # HITL 功能单元测试（mock，无需真实 API）
+├── static/             # 前端页面
+└── core/               # 核心模块
+    ├── agent.py        #   总指挥，组装所有组件
+    ├── loop.py         #   ReAct 循环引擎 + HITL 审批逻辑
+    ├── tools.py        #   工具注册、执行、风险分级 + ApprovalManager
+    ├── memory.py       #   短期 + 长期记忆管理
+    ├── skills.py       #   Markdown 技能加载器
+    └── context.py      #   上下文 & 系统提示词组装
 ```
 
-**核心设计理念：**
+## 🧪 运行测试
 
-| 原则 | 实现 |
-|------|------|
-| 组合优于继承 | TinyAgent 组合 5 个独立模块，无基类继承 |
-| 流式优先 | 全链路 AsyncGenerator，用户秒看到第一个字 |
-| 安全兜底 | `max_iterations=10` 防死循环 + Shell 命令黑名单 |
-| 零配置扩展 | 扔一个 `SKILL.md` 进 `skills/` 目录即生效 |
+HITL 功能测试（不消耗 API 额度）：
 
-## 🛠️ 内置工具
-
-| 工具 | 说明 |
-|------|------|
-| `read_file` | 读取文件内容 |
-| `write_file` | 写入/创建文件 |
-| `list_dir` | 列出目录结构 |
-| `exec` | 执行 Shell 命令（带安全拦截） |
-
-## 📝 技能系统
-
-在 `workspace/skills/` 下创建目录，放入 `SKILL.md` 即可：
-
-```yaml
----
-name: data-analysis
-description: 数据分析技能，支持 CSV 处理和可视化
-always_load: false
----
-# 数据分析技能
-
-当用户需要分析数据时，按以下步骤操作……
+```bash
+python test_hitl.py
 ```
 
-- `always_load: true` → 全文注入系统提示词（核心技能）
-- `always_load: false` → 仅索引名称和描述，按需加载（省 token）
+输出示例：
+```
+测试场景：用户将选择 【同意】
+  [前端] 收到审批请求: 工具=exec
+  [用户] 已提交决定: 同意
+  >>> 期望执行=True, 实际执行=True -> 测试通过 ✓
+
+测试场景：用户将选择 【拒绝】
+  [前端] 收到审批请求: 工具=exec
+  [用户] 已提交决定: 拒绝
+  >>> 期望执行=False, 实际执行=False -> 测试通过 ✓
+```
 
 ## 📡 API 接口
 
 | 方法 | 路径 | 说明 |
-|------|------|------|
+|---|---|---|
 | `POST` | `/api/chat` | 流式对话（SSE） |
+| `POST` | `/api/approve` | 提交工具审批结果（HITL） |
 | `GET` | `/api/status` | 获取技能和工具列表 |
 | `GET` | `/api/memory` | 查看记忆状态 |
 | `GET` | `/api/history` | 获取完整对话历史 |
-| `GET` | `/api/outputs` | 列出输出文件 |
 | `POST` | `/api/upload` | 上传文件到工作区 |
 | `POST` | `/api/clear` | 清空对话记忆 |
-| `DELETE` | `/api/outputs/{filename}` | 删除输出文件 |
-
-## 🤔 为什么不用 LangChain
-
-| | TinyAgent | LangChain |
-|--|-----------|-----------|
-| 代码量 | ~700 行 | 数万行 |
-| 依赖 | 6 个包 | 40+ 个包 |
-| 学习曲线 | 读完 6 个文件 | 翻文档几天 |
-| 定位 | 教学 + 轻量生产 | 企业级框架 |
-
-TinyAgent 不是要替代任何框架。它的目标是让你 **读完代码后真正理解 Agent 是怎么工作的**。
-
-
-<p align="center">
-  <em>真正重要的东西，往往简单到让人不敢相信。</em>
-</p>
