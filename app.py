@@ -11,7 +11,8 @@ import os
 import yaml
 from core.agent import TinyAgent
 
-# 加载配置文件
+# 加载配置：环境变量优先，其次 config.yaml，最后默认值
+# Docker 部署时通过 -e 参数传入，不需要把 Key 写进镜像
 config_path = "config.yaml"
 if os.path.exists(config_path):
     with open(config_path, 'r', encoding='utf-8') as f:
@@ -21,15 +22,19 @@ else:
 
 llm_config = config.get("llm", {})
 
+api_key   = os.environ.get("LLM_API_KEY")   or llm_config.get("api_key")
+base_url  = os.environ.get("LLM_BASE_URL")  or llm_config.get("base_url")
+model     = os.environ.get("LLM_MODEL")     or llm_config.get("model", "gpt-4o-mini")
+
 workspace_path = "./workspace"
 outputs_path = os.path.join(workspace_path, "outputs")
 os.makedirs(outputs_path, exist_ok=True)
 
 agent = TinyAgent(
-    workspace_dir=workspace_path, 
-    openai_api_key=llm_config.get("api_key"),
-    base_url=llm_config.get("base_url"),
-    model=llm_config.get("model", "gpt-4o-mini")
+    workspace_dir=workspace_path,
+    openai_api_key=api_key,
+    base_url=base_url,
+    model=model
 )
 
 app = FastAPI(title="Tiny Agent Backend")

@@ -116,6 +116,45 @@ python app.py
 
 试着发送：**"帮我执行 echo hello world"**，体验 HITL 审批弹窗。
 
+## 🐳 Docker 部署
+
+### 方式一：docker-compose（推荐）
+
+```bash
+# 1. 复制环境变量模板
+cp .env.example .env
+
+# 2. 编辑 .env，填入你的 API Key
+# LLM_API_KEY=your-api-key
+# LLM_BASE_URL=https://api.deepseek.com/v1
+# LLM_MODEL=deepseek-chat
+
+# 3. 启动
+docker-compose up -d
+
+# 4. 查看日志
+docker-compose logs -f
+```
+
+### 方式二：docker run
+
+```bash
+# 构建镜像
+docker build -t smartflow .
+
+# 启动容器
+docker run -d \
+  -p 8000:8000 \
+  -e LLM_API_KEY=your-api-key \
+  -e LLM_BASE_URL=https://api.deepseek.com/v1 \
+  -e LLM_MODEL=deepseek-chat \
+  -v $(pwd)/workspace:/app/workspace \
+  --name smartflow \
+  smartflow
+```
+
+访问 `http://localhost:8000` 开始使用。
+
 ## 📁 项目结构
 
 ```

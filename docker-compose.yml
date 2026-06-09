@@ -1,0 +1,14 @@
+services:
+  smartflow:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # API 配置：在 .env 文件或环境变量中设置，不要写死在这里
+      - LLM_API_KEY=${LLM_API_KEY}
+      - LLM_BASE_URL=${LLM_BASE_URL}
+      - LLM_MODEL=${LLM_MODEL:-deepseek-chat}
+    volumes:
+      # 挂载 workspace，容器重启后数据不丢失
+      - ./workspace:/app/workspace
+    restart: unless-stopped
