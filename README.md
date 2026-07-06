@@ -22,7 +22,7 @@
 
 SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Acting）模式，支持大模型自主决策多轮工具调用。
 
-在标准 Agent 能力之上，SmartFlow 原创实现了 **Human-in-the-Loop（HITL）人工审批机制**：当 Agent 想执行高风险操作（如 Shell 命令）时，自动暂停并向用户弹出审批窗口，用户确认后才继续执行，从根本上解决 Agent 失控问题。
+在标准 Agent 能力之上，SmartFlow 实现了 **Human-in-the-Loop（HITL）人工审批机制**：当 Agent 想执行高风险操作（如 Shell 命令）时，自动暂停并向用户弹出审批窗口，用户确认后才继续执行，可以解决 Agent 失控问题。
 
 ## 🏗️ 核心架构
 
