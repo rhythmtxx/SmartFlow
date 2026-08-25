@@ -194,6 +194,7 @@ curl -X POST http://localhost:8000/api/chat \
 ```
 SmartFlow/
 ├── app.py              # FastAPI 入口，HTTP 路由 + SSE
+├── CHANGELOG.md        # 更新日志（Keep a Changelog 规范）
 ├── config.yaml.example # LLM 配置模板（复制为 config.yaml 使用）
 ├── .env.example        # Docker 环境变量模板（复制为 .env 使用）
 ├── requirements.txt    # Python 依赖（含 RAG：chromadb + sentence-transformers）
