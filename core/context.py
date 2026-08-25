@@ -53,7 +53,7 @@ class ContextBuilder:
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
         workspace_path = Path(self.workspace_dir).resolve().as_posix()
         
-        return f"""你名叫 tinybot，是一个有用的 AI 助手。 
+        return f"""你名叫 SmartFlow，是一个有用的 AI 助手。 
 
 ## 当前时间
 {now} ({tz})

@@ -1,8 +1,9 @@
 import json
 import logging
+import secrets
 from typing import AsyncGenerator
 
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request, UploadFile, File
 from pydantic import BaseModel
@@ -21,10 +22,15 @@ else:
     config = {}
 
 llm_config = config.get("llm", {})
+server_config = config.get("server", {})
 
 api_key   = os.environ.get("LLM_API_KEY")   or llm_config.get("api_key")
 base_url  = os.environ.get("LLM_BASE_URL")  or llm_config.get("base_url")
 model     = os.environ.get("LLM_MODEL")     or llm_config.get("model", "gpt-4o-mini")
+
+# 接口鉴权 Token（可选）：环境变量 SMARTFLOW_API_TOKEN 优先，其次 config.yaml 的 server.api_token
+# 未配置时鉴权关闭（本地演示模式）；配置后所有 /api/* 接口需要 Authorization: Bearer <token>
+api_token = os.environ.get("SMARTFLOW_API_TOKEN") or server_config.get("api_token", "")
 
 workspace_path = "./workspace"
 outputs_path = os.path.join(workspace_path, "outputs")
@@ -37,7 +43,32 @@ agent = TinyAgent(
     model=model
 )
 
-app = FastAPI(title="Tiny Agent Backend")
+app = FastAPI(title="SmartFlow API")
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    """
+    接口鉴权中间件（可选开启）。
+    - 未配置 api_token 时：完全放行（本地演示模式）
+    - 配置后：所有 /api/* 接口必须携带 Authorization: Bearer <token>
+    - 静态资源（/ 页面、/static）保持开放，方便直接浏览 UI
+    使用 secrets.compare_digest 做常数时间比较，防止时序攻击。
+    """
+    if not api_token:
+        return await call_next(request)
+
+    path = request.url.path
+    if not path.startswith("/api/"):
+        return await call_next(request)
+
+    auth = request.headers.get("Authorization", "")
+    token = auth[7:] if auth.startswith("Bearer ") else ""
+    if not token or not secrets.compare_digest(token, api_token):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized: 缺少或错误的 API Token，请设置 SMARTFLOW_API_TOKEN"}
+        )
+    return await call_next(request)
 
 # 挂载静态资源
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -160,12 +191,16 @@ async def upload_file(file: UploadFile = File(...)):
     """上传文件到 workspace outputs 目录"""
     if not os.path.exists(outputs_path):
         os.makedirs(outputs_path, exist_ok=True)
-    file_path = os.path.join(outputs_path, file.filename)
+    # 安全防护：仅取文件名，防止路径穿越（如 ../../evil.py）
+    safe_name = os.path.basename(file.filename or "")
+    if not safe_name:
+        return {"status": "error", "message": "Invalid filename"}
+    file_path = os.path.join(outputs_path, safe_name)
     try:
         content = await file.read()
         with open(file_path, "wb") as f:
             f.write(content)
-        return {"status": "success", "filename": file.filename}
+        return {"status": "success", "filename": safe_name}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -186,7 +221,11 @@ async def add_to_knowledge(file: UploadFile = File(...)):
         return {"status": "error", "message": "仅支持 .txt 和 .md 格式"}
 
     # 先保存到 outputs 目录，再导入知识库
-    save_path = os.path.join(outputs_path, file.filename)
+    # 安全防护：仅取文件名，防止路径穿越
+    safe_name = os.path.basename(file.filename or "")
+    if not safe_name:
+        return {"status": "error", "message": "Invalid filename"}
+    save_path = os.path.join(outputs_path, safe_name)
     try:
         content = await file.read()
         with open(save_path, "wb") as f:
@@ -217,5 +256,8 @@ async def clear_knowledge():
 
 if __name__ == "__main__":
     import uvicorn
-    logging.info("Starting Tiny Agent server on http://localhost:8000")
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    # 开发模式开启热重载：APP_RELOAD=true python app.py
+    # 生产环境（Docker 等）默认关闭 reload，避免多余 watcher 进程
+    reload_enabled = os.environ.get("APP_RELOAD", "false").lower() in ("1", "true", "yes")
+    logging.info("Starting SmartFlow server on http://localhost:8000")
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=reload_enabled)

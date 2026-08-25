@@ -24,6 +24,8 @@ SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Ac
 
 在标准 Agent 能力之上，SmartFlow 实现了 **Human-in-the-Loop（HITL）人工审批机制**：当 Agent 想执行高风险操作（如 Shell 命令）时，自动暂停并向用户弹出审批窗口，用户确认后才继续执行，可以解决 Agent 失控问题。
 
+> 📚 **配套学习资料**：项目附带 [面试复习手册](./面试复习手册.md)（1289 行），逐行讲解代码 + Agent 开发岗面试题精讲，面试前必看。
+
 ## 🏗️ 核心架构
 
 ```
@@ -87,9 +89,12 @@ event.set() 唤醒协程 → 根据结果执行或跳过工具
 pip install -r requirements.txt
 ```
 
+> RAG 知识库功能依赖 `chromadb` 和 `sentence-transformers`（已在 requirements.txt 中）：
+> 首次使用知识库时会自动下载约 120MB 的 Embedding 模型，稍等片刻即可。
+
 ### 2. 配置 LLM
 
-复制配置模板并填入你的 API 信息：
+复制配置模板并填入你的 API 信息（环境变量优先，也可以不写 config.yaml 直接导出环境变量）：
 
 ```bash
 cp config.yaml.example config.yaml
@@ -109,7 +114,8 @@ llm:
 ### 3. 启动服务
 
 ```bash
-python app.py
+python app.py          # 生产模式（默认关闭热重载）
+APP_RELOAD=true python app.py   # 开发模式（代码修改后自动重启）
 ```
 
 访问 `http://localhost:8000` 开始对话。
@@ -128,6 +134,7 @@ cp .env.example .env
 # LLM_API_KEY=your-api-key
 # LLM_BASE_URL=https://api.deepseek.com/v1
 # LLM_MODEL=deepseek-chat
+# SMARTFLOW_API_TOKEN=你的鉴权Token（可选，建议生产环境设置）
 
 # 3. 启动
 docker-compose up -d
@@ -148,6 +155,7 @@ docker run -d \
   -e LLM_API_KEY=your-api-key \
   -e LLM_BASE_URL=https://api.deepseek.com/v1 \
   -e LLM_MODEL=deepseek-chat \
+  -e SMARTFLOW_API_TOKEN=your-token \
   -v $(pwd)/workspace:/app/workspace \
   --name smartflow \
   smartflow
@@ -155,22 +163,52 @@ docker run -d \
 
 访问 `http://localhost:8000` 开始使用。
 
+## 🔐 接口鉴权（可选）
+
+默认**不开启鉴权**，适合本地演示；部署到公网时强烈建议开启，防止他人白嫖你的 API Key 或调用高危工具。
+
+**开启方式（任选其一）：**
+
+```bash
+# 方式一：环境变量（推荐，不落盘）
+SMARTFLOW_API_TOKEN=$(openssl rand -hex 32) python app.py
+
+# 方式二：config.yaml
+# server:
+#   api_token: "your-token"
+```
+
+开启后，所有 `/api/*` 接口必须携带请求头 `Authorization: Bearer <token>`：
+
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Authorization: Bearer your-token" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "hello"}'
+```
+
+前端页面左侧栏内置了 API Token 输入框（保存在浏览器 localStorage），填写后自动带上鉴权头。
+
 ## 📁 项目结构
 
 ```
 SmartFlow/
 ├── app.py              # FastAPI 入口，HTTP 路由 + SSE
-├── config.yaml.example # LLM 配置模板
-├── requirements.txt    # Python 依赖
+├── config.yaml.example # LLM 配置模板（复制为 config.yaml 使用）
+├── .env.example        # Docker 环境变量模板（复制为 .env 使用）
+├── requirements.txt    # Python 依赖（含 RAG：chromadb + sentence-transformers）
 ├── test_hitl.py        # HITL 功能单元测试（mock，无需真实 API）
+├── test_rag.py         # RAG 知识库功能测试
+├── 面试复习手册.md      # 代码讲解 + 面试题精讲
 ├── static/             # 前端页面
 └── core/               # 核心模块
     ├── agent.py        #   总指挥，组装所有组件
     ├── loop.py         #   ReAct 循环引擎 + HITL 审批逻辑
     ├── tools.py        #   工具注册、执行、风险分级 + ApprovalManager
-    ├── memory.py       #   短期 + 长期记忆管理
+    ├── memory.py       #   短期（SQLite）+ 长期（Markdown）记忆管理
     ├── skills.py       #   Markdown 技能加载器
-    └── context.py      #   上下文 & 系统提示词组装
+    ├── context.py      #   上下文 & 系统提示词组装
+    └── knowledge.py    #   RAG 知识库（ChromaDB + 本地 Embedding）
 ```
 
 ## 🧪 运行测试
@@ -204,4 +242,18 @@ python test_hitl.py
 | `GET` | `/api/memory` | 查看记忆状态 |
 | `GET` | `/api/history` | 获取完整对话历史 |
 | `POST` | `/api/upload` | 上传文件到工作区 |
+| `DELETE` | `/api/outputs/{name}` | 删除工作区输出文件 |
+| `GET` | `/api/outputs` | 列出工作区输出文件 |
 | `POST` | `/api/clear` | 清空对话记忆 |
+| `POST` | `/api/knowledge/add` | 上传文档导入知识库（RAG，支持 .txt/.md） |
+| `GET` | `/api/knowledge/stats` | 获取知识库统计 |
+| `DELETE` | `/api/knowledge/clear` | 清空知识库 |
+
+## 🗺️ Roadmap（计划中）
+
+- [ ] **多会话隔离** — 支持多用户/多会话并行，各自独立记忆
+- [ ] **可观测性面板** — token 消耗、成本、工具调用时间线可视化
+- [ ] **上下文压缩** — 历史超窗口时用 LLM 摘要，替代粗暴截断
+- [ ] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
+- [ ] **评估集（Eval）** — 任务链自动化测试，量化 Agent 成功率
+- [ ] **前端工程化** — 迁移到 React/Vite，组件化 + 测试

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tiny Agent | Terminal</title>
+    <title>SmartFlow | Terminal</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -188,7 +188,7 @@
         <!-- Header -->
         <div class="p-6 border-b border-cyber-border relative">
             <div class="flex items-center justify-between mb-1">
-                <h1 class="text-2xl font-semibold tracking-wide text-white font-mono">TINY_AGENT</h1>
+                <h1 class="text-2xl font-semibold tracking-wide text-white font-mono">SmartFlow</h1>
                 <span class="flex h-3 w-3 relative">
                     <span
                         class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyber-green opacity-75"></span>
@@ -222,6 +222,29 @@
                     <span id="token-total" class="font-bold text-white tracking-wider glow-text">0000</span>
                 </div>
             </div>
+
+            <!-- API Token 鉴权配置 -->
+            <div class="mt-6">
+                <label for="api-token-input"
+                    class="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-2 flex items-center">
+                    <svg class="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    API Token <span class="normal-case tracking-normal text-zinc-600 ml-1">(可选)</span>
+                </label>
+                <div class="flex gap-2">
+                    <input id="api-token-input" type="password" autocomplete="off" placeholder="SMARTFLOW_API_TOKEN"
+                        class="flex-1 min-w-0 bg-zinc-900 border border-zinc-700 focus:border-cyber-blue focus:outline-none px-2.5 py-2 text-[11px] font-mono text-cyber-blue rounded-sm transition-colors"
+                        value="">
+                    <button type="button" onclick="saveApiToken()" title="保存 Token"
+                        class="px-3 py-2 bg-zinc-900 border border-zinc-700 hover:border-cyber-green hover:text-cyber-green active:bg-zinc-800 focus:outline-none text-zinc-400 text-[10px] font-mono tracking-widest uppercase rounded-sm transition-all duration-300 flex-shrink-0">SET</button>
+                </div>
+                <p id="api-token-status" class="text-[10px] text-zinc-600 font-mono mt-1.5 leading-relaxed">
+                    Not configured — auth disabled.
+                </p>
+            </div>
+
             <button type="button" onclick="clearContext()"
                 class="mt-6 w-full py-2.5 bg-zinc-900 border border-zinc-700 hover:border-cyber-blue hover:text-cyber-blue active:bg-zinc-800 focus-visible:ring-1 focus-visible:ring-cyber-blue focus:outline-none text-zinc-400 text-xs font-mono tracking-widest uppercase rounded-sm transition-all duration-300 relative overflow-hidden group">
                 <span class="relative z-10">Purge Memory</span>
@@ -285,7 +308,7 @@
                         <span class="w-1.5 h-1.5 bg-cyber-blue mr-2 rounded-full shadow-[0_0_5px_#00f0ff]"></span>
                         System Override Initiated
                     </div>
-                    <p>Greeting sequence activated. I am the Tiny Agent core logic framework. Auxiliary tools
+                    <p>Greeting sequence activated. I am the SmartFlow agent core logic framework. Auxiliary tools
                         registered. Skill matrices linked. Awaiting input directive.</p>
                 </div>
             </div>
@@ -379,9 +402,56 @@
         let isGenerating = false;
         let cumulativeTokens = { prompt: 0, completion: 0 };
 
+        // ============ API 鉴权 ============
+        let apiToken = localStorage.getItem('smartflow_api_token') || '';
+
+        // 为 fetch 请求统一附加 Authorization 头（可选鉴权）
+        function apiHeaders(extra = {}) {
+            if (apiToken) extra['Authorization'] = 'Bearer ' + apiToken;
+            return extra;
+        }
+
+        // 保存 Token 到 localStorage，并立即验证连通性
+        function saveApiToken() {
+            const input = document.getElementById('api-token-input');
+            apiToken = (input.value || '').trim();
+            const status = document.getElementById('api-token-status');
+            if (apiToken) {
+                localStorage.setItem('smartflow_api_token', apiToken);
+                status.textContent = 'Token saved. Verifying access...';
+                status.className = 'text-[10px] text-cyber-blue font-mono mt-1.5 leading-relaxed';
+            } else {
+                localStorage.removeItem('smartflow_api_token');
+                status.textContent = 'Not configured — auth disabled.';
+                status.className = 'text-[10px] text-zinc-600 font-mono mt-1.5 leading-relaxed';
+            }
+            // 验证：401 说明 Token 错误或服务端未开启鉴权
+            fetchStatus().then(ok => {
+                if (ok === false) {
+                    status.textContent = 'ERROR: 401 Unauthorized — 请检查 Token 是否正确。';
+                    status.className = 'text-[10px] text-red-500 font-mono mt-1.5 leading-relaxed';
+                } else {
+                    status.textContent = apiToken ? 'Token accepted — auth active.' : 'Not configured — auth disabled.';
+                    status.className = apiToken
+                        ? 'text-[10px] text-cyber-green font-mono mt-1.5 leading-relaxed'
+                        : 'text-[10px] text-zinc-600 font-mono mt-1.5 leading-relaxed';
+                }
+            });
+        }
+
+        // 统一的 401 处理：返回 true 表示已处理
+        function handleAuthError(res) {
+            if (res.status === 401) {
+                appendSystemMessage('AUTH_ERR: 401 Unauthorized — 请在左侧栏配置正确的 API Token。');
+                return true;
+            }
+            return false;
+        }
+
         async function fetchStatus() {
             try {
-                const res = await fetch('/api/status');
+                const res = await fetch('/api/status', { headers: apiHeaders() });
+                if (handleAuthError(res)) return false;
                 const data = await res.json();
 
                 const skillsList = document.getElementById('skills-list');
@@ -412,6 +482,7 @@
             } catch (error) {
                 console.error("Failed to load telemetry:", error);
             }
+            return true;
         }
 
         function formatBytes(bytes, decimals = 1) {
@@ -425,7 +496,8 @@
 
         async function fetchOutputs() {
             try {
-                const res = await fetch('/api/outputs');
+                const res = await fetch('/api/outputs', { headers: apiHeaders() });
+                if (handleAuthError(res)) return;
                 const data = await res.json();
                 const outputsList = document.getElementById('outputs-list');
                 const ping = document.getElementById('outputs-ping');
@@ -481,6 +553,7 @@
                 document.body.style.cursor = 'wait';
                 const res = await fetch('/api/upload', {
                     method: 'POST',
+                    headers: apiHeaders(),
                     body: formData
                 });
                 const data = await res.json();
@@ -506,7 +579,8 @@
             }
             try {
                 const res = await fetch(`/api/outputs/${encodeURIComponent(filename)}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: apiHeaders()
                 });
                 const data = await res.json();
                 if (data.status === 'success') {
@@ -522,7 +596,8 @@
 
         async function fetchMemory() {
             try {
-                const res = await fetch('/api/memory');
+                const res = await fetch('/api/memory', { headers: apiHeaders() });
+                if (handleAuthError(res)) return;
                 const data = await res.json();
                 const memContent = document.getElementById('memory-content');
 
@@ -538,7 +613,8 @@
 
         async function fetchHistory() {
             try {
-                const res = await fetch('/api/history');
+                const res = await fetch('/api/history', { headers: apiHeaders() });
+                if (handleAuthError(res)) return;
                 const data = await res.json();
 
                 // 恢复 Tokens
@@ -596,7 +672,7 @@
         }
 
         async function clearContext() {
-            await fetch('/api/clear', { method: 'POST' });
+            await fetch('/api/clear', { method: 'POST', headers: apiHeaders() });
             chatContainer.innerHTML = '';
             cumulativeTokens = { prompt: 0, completion: 0 };
             updateTokenUI(0, 0, 0);
@@ -710,10 +786,11 @@
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: apiHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ message: msg })
                 });
 
+                if (handleAuthError(response)) return;
                 if (!response.body) throw new Error("Stream unsupported.");
 
                 const reader = response.body.getReader();
@@ -847,7 +924,7 @@
             try {
                 await fetch('/api/approve', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: apiHeaders({ 'Content-Type': 'application/json' }),
                     body: JSON.stringify({ approval_id: id, approved: approved })
                 });
             } catch (e) {
@@ -856,6 +933,18 @@
         }
 
         // Init Sequence
+        // 恢复已保存的 API Token 并显示鉴权状态
+        const tokenInput = document.getElementById('api-token-input');
+        if (tokenInput) tokenInput.value = apiToken;
+        const tokenStatus = document.getElementById('api-token-status');
+        if (tokenStatus) {
+            if (apiToken) {
+                tokenStatus.textContent = 'Token loaded from storage.';
+                tokenStatus.className = 'text-[10px] text-cyber-blue font-mono mt-1.5 leading-relaxed';
+            } else {
+                tokenStatus.textContent = 'Not configured — auth disabled.';
+            }
+        }
         fetchStatus();
         fetchOutputs();
         fetchMemory();

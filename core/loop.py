@@ -118,8 +118,10 @@ class AgentLoop:
                             if tc.id:
                                 tool_call_buffer[idx]["id"] += tc.id
                             if tc.function:
-                                if tc.function.name:
-                                    tool_call_buffer[idx]["function"]["name"] += tc.function.name
+                                # 注意：部分后端会在每个分片重复发送完整 name，
+                                # 这里只在为空时赋值，避免拼成 "read_fileread_file"
+                                if tc.function.name and not tool_call_buffer[idx]["function"]["name"]:
+                                    tool_call_buffer[idx]["function"]["name"] = tc.function.name
                                 if tc.function.arguments:
                                     tool_call_buffer[idx]["function"]["arguments"] += tc.function.arguments
 

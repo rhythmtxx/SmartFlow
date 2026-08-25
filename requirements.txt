@@ -1,6 +1,14 @@
+# LLM / API
 openai>=1.0.0
 fastapi>=0.100.0
 uvicorn>=0.23.0
 pydantic>=2.0.0
+
+# 工具 / 配置
 jinja2>=3.1.2
 pyyaml>=6.0.1
+
+# RAG 知识库（core/knowledge.py）
+# sentence-transformers 首次使用时会自动下载 ~120MB 的 embedding 模型
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
