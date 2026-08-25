@@ -9,9 +9,16 @@ __pycache__/
 *.pyd
 .Python
 
-# 运行时生成的数据（对话历史、输出文件）
+# 运行时生成的数据（对话历史、输出文件、向量知识库）
 workspace/memory/
 workspace/outputs/
+workspace/knowledge_db/
+
+# 测试产生的临时目录（test_rag.py）
+_test_rag_tmp/
+
+# 遗留占位文件
+hello
 
 # 个人文件
 *.png
