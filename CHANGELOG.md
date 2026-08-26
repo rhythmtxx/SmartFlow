@@ -5,6 +5,13 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### Security
+- 鉴权范围扩展：开启 Token 后，`/outputs/*` 文件下载同样受保护（此前可直接访问 Agent 生成的文件）
+- 新增受鉴权的下载接口 `GET /api/outputs/download/{filename}`，前端文件打开/下载改走该接口
+- 清除本地 `config.yaml` / `.env` 中明文保存的 API Key（改为占位符，需在服务商重置后重新配置）
+
 ## [1.1.0] - 2026-08-25
 
 ### Added

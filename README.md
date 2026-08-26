@@ -178,13 +178,17 @@ SMARTFLOW_API_TOKEN=$(openssl rand -hex 32) python app.py
 #   api_token: "your-token"
 ```
 
-开启后，所有 `/api/*` 接口必须携带请求头 `Authorization: Bearer <token>`：
+开启后，所有 `/api/*` 接口及 `/outputs/*` 文件下载必须携带请求头 `Authorization: Bearer <token>`：
 
 ```bash
 curl -X POST http://localhost:8000/api/chat \
   -H "Authorization: Bearer your-token" \
   -H "Content-Type: application/json" \
   -d '{"message": "hello"}'
+
+# 下载 Agent 生成的输出文件（受鉴权保护）
+curl http://localhost:8000/api/outputs/download/report.md \
+  -H "Authorization: Bearer your-token" -o report.md
 ```
 
 前端页面左侧栏内置了 API Token 输入框（保存在浏览器 localStorage），填写后自动带上鉴权头。
@@ -245,6 +249,7 @@ python test_hitl.py
 | `POST` | `/api/upload` | 上传文件到工作区 |
 | `DELETE` | `/api/outputs/{name}` | 删除工作区输出文件 |
 | `GET` | `/api/outputs` | 列出工作区输出文件 |
+| `GET` | `/api/outputs/download/{name}` | 下载/预览输出文件（受鉴权保护） |
 | `POST` | `/api/clear` | 清空对话记忆 |
 | `POST` | `/api/knowledge/add` | 上传文档导入知识库（RAG，支持 .txt/.md） |
 | `GET` | `/api/knowledge/stats` | 获取知识库统计 |

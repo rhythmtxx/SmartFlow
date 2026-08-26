@@ -508,19 +508,16 @@
 
                 if (data.files && data.files.length > 0) {
                     outputsList.innerHTML = data.files.map(f => {
-                        const targetBlank = (f.name.endsWith('.html') || f.name.endsWith('.pdf') || f.name.match(/\\.(png|jpe?g|svg|gif|webp)$/i)) ? 'target="_blank"' : '';
-                        const dlAttr = f.name.endsWith('.pptx') ? `download="${f.name}"` : '';
-
                         return `
                         <li class="flex items-center justify-between group py-1.5 border-b border-zinc-900/50 last:border-0 hover:bg-zinc-900/30 -mx-2 px-2 rounded transition-colors">
                             <div class="flex flex-col flex-1 min-w-0 pr-3">
-                                <a href="/outputs/${f.name}" ${targetBlank} ${dlAttr} class="text-xs font-mono text-zinc-300 hover:text-cyber-green truncate block font-medium transition-colors">
+                                <a href="javascript:void(0)" onclick="openOutput('${f.name}')" class="text-xs font-mono text-zinc-300 hover:text-cyber-green truncate block font-medium transition-colors">
                                     ${f.name}
                                 </a>
                                 <span class="text-[10px] text-zinc-600 font-mono tracking-wider mt-0.5">${formatBytes(f.size)}</span>
                             </div>
                             <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <a href="/outputs/${f.name}" ${dlAttr} ${f.name.endsWith('.pptx') ? '' : 'target="_blank"'} class="text-zinc-500 hover:text-cyber-blue transition-colors flex-shrink-0" title="${f.name.endsWith('.pptx') ? 'Download' : 'Open'}">
+                                <a href="javascript:void(0)" onclick="openOutput('${f.name}')" class="text-zinc-500 hover:text-cyber-blue transition-colors flex-shrink-0" title="${f.name.endsWith('.pptx') ? 'Download' : 'Open'}">
                                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${f.name.endsWith('.pptx') ? 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' : 'M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14'}" />
                                     </svg>
@@ -570,6 +567,35 @@
             } finally {
                 document.body.style.cursor = 'default';
                 event.target.value = ''; // Reset input
+            }
+        }
+
+        // 通过带鉴权的 API 下载/预览输出文件
+        // （开启鉴权后，/outputs 静态路径被中间件拦截，必须走 /api/outputs/download）
+        async function openOutput(filename) {
+            try {
+                const res = await fetch(`/api/outputs/download/${encodeURIComponent(filename)}`, { headers: apiHeaders() });
+                if (handleAuthError(res)) return;
+                if (!res.ok) { alert('Failed to open file: ' + res.status); return; }
+
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const isPptx = filename.toLowerCase().endsWith('.pptx');
+                if (isPptx) {
+                    // PPTX 只能下载，无法在浏览器预览
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    window.open(url, '_blank');
+                }
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            } catch (error) {
+                console.error("Failed to open output:", error);
+                alert("Failed to open file.");
             }
         }
 

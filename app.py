@@ -50,7 +50,8 @@ async def auth_middleware(request: Request, call_next):
     """
     接口鉴权中间件（可选开启）。
     - 未配置 api_token 时：完全放行（本地演示模式）
-    - 配置后：所有 /api/* 接口必须携带 Authorization: Bearer <token>
+    - 配置后：所有 /api/* 接口及 /outputs/* 文件下载必须携带
+      Authorization: Bearer <token>
     - 静态资源（/ 页面、/static）保持开放，方便直接浏览 UI
     使用 secrets.compare_digest 做常数时间比较，防止时序攻击。
     """
@@ -58,7 +59,7 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
 
     path = request.url.path
-    if not path.startswith("/api/"):
+    if not path.startswith("/api/") and not path.startswith("/outputs/"):
         return await call_next(request)
 
     auth = request.headers.get("Authorization", "")
@@ -185,6 +186,23 @@ async def delete_output(filename: str):
             return {"status": "error", "message": str(e)}
     else:
         return {"status": "error", "message": "File not found"}
+
+@app.get("/api/outputs/download/{filename}")
+async def download_output(filename: str):
+    """
+    下载/预览工作区输出文件。
+    受鉴权中间件保护（/api/* 前缀），前端通过 fetch + Bearer Token 访问。
+    开启鉴权后，静态挂载的 /outputs/* 路径同样被中间件拦截，因此文件必须走本接口。
+    """
+    # Security: Prevent directory traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return JSONResponse(status_code=400, content={"detail": "Invalid filename"})
+
+    file_path = os.path.join(outputs_path, filename)
+    if not os.path.exists(file_path) or not os.path.isfile(file_path):
+        return JSONResponse(status_code=404, content={"detail": "File not found"})
+
+    return FileResponse(file_path, filename=filename)
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
