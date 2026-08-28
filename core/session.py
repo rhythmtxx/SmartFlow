@@ -28,11 +28,14 @@ _SESSION_ID_RE = "^[a-zA-Z0-9_-]{1,64}$"
 
 class SessionManager:
     def __init__(self, workspace_dir: str, openai_api_key: str = None,
-                 base_url: str = None, model: str = "gpt-4o-mini"):
+                 base_url: str = None, model: str = "gpt-4o-mini",
+                 pricing: Optional[Dict] = None):
         self.workspace_dir = workspace_dir
         self.openai_api_key = openai_api_key
         self.base_url = base_url
         self.model = model
+        # 成本估算价格：{"prompt": 每千token元, "completion": 每千token元}
+        self.pricing = pricing or {}
 
         self._shared: Optional[Dict] = None
         self._sessions: Dict[str, TinyAgent] = {}
@@ -166,3 +169,12 @@ class SessionManager:
                 for t in shared["tools"].tools.values()
             ],
         }
+
+    # ------------------------------------------------------------------ #
+    # 可观测性统计（供 /api/stats 使用）                                     #
+    # ------------------------------------------------------------------ #
+
+    def get_stats(self, session_id: str = "default") -> Dict:
+        """获取指定会话的可观测性统计（token 明细、成本估算、工具调用时间线）。"""
+        agent = self.get(session_id)
+        return agent.memory.get_observability_stats(pricing=self.pricing)

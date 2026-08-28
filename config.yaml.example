@@ -22,6 +22,12 @@ llm:
   # OpenAI:    https://api.openai.com/v1
   base_url: "https://api.deepseek.com/v1"
 
+  # 成本估算价格（可选）：每千 token 元，用于 /api/stats 的成本统计
+  # 按你的模型实际价格填写；不配置则统计里 cost 为 null
+  pricing:
+    prompt: 0.001      # 每千输入 token 价格（元）
+    completion: 0.002  # 每千输出 token 价格（元）
+
 server:
   # 接口鉴权 Token（可选）：设置后所有 /api/* 接口需携带
   # Authorization: Bearer <token>，防止他人白嫖 API Key 或执行命令。

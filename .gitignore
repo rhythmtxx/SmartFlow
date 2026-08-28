@@ -14,9 +14,8 @@ workspace/memory/
 workspace/outputs/
 workspace/knowledge_db/
 
-# 测试产生的临时目录（test_rag.py / session 测试）
-_test_rag_tmp/
-_test_session_tmp/
+# 测试产生的临时目录（test_rag.py / session 测试 / 可观测性测试）
+_test_*/
 
 # 评估集运行时产物（临时工作区 + 报告）
 eval/tmp/

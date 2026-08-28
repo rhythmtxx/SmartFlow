@@ -8,6 +8,10 @@
 ## [Unreleased]
 
 ### Added
+- **可观测性面板**：SQLite 新增 `tool_calls` / `rounds` 表，自动采集每次工具调用（名称/参数/结果摘要）与每轮 LLM token 明细
+  - 新接口 `GET /api/stats?session=`：token 总量 / 轮数 / 工具调用次数 / **预估成本**（`llm.pricing` 配置，可选）+ 工具调用排行与最近时间线
+  - 前端 Telemetry 面板扩展：成本估算显示 + 工具调用列表（按风险着色：exec 红 / write·edit 黄 / 只读绿）
+  - `chat_stream` 自动采集：`tool_call_start/end` 事件合成完整工具记录，`token_usage` 事件记入 rounds 表
 - **评估集（Eval Harness）**：`eval/` 目录 + 7 个端到端任务，量化 Agent 行为质量
   - **mock 模式**（零成本，CI 友好）：脚本化 FakeClient 验证工具调用链与 HITL 审批链路
   - **real 模式**（需 LLM API Key）：真实模型跑完整链路，按 checks 校验输出产物（文件/关键词）并统计 token

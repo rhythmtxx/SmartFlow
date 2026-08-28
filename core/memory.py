@@ -16,6 +16,8 @@ class MemoryStore:
     表结构：
       messages(id, session_id, role, content, created_at)
       tokens(session_id, prompt_tokens, completion_tokens)
+      tool_calls(id, session_id, tool_name, arguments, result_summary, created_at)
+      rounds(id, session_id, prompt_tokens, completion_tokens, total_tokens, created_at)
 
     长期记忆（MEMORY.md）继续用文件存储，因为它是给 Agent 读写的 Markdown 文档。
     """
@@ -59,6 +61,30 @@ class MemoryStore:
 
                 CREATE INDEX IF NOT EXISTS idx_messages_session
                     ON messages(session_id, id);
+
+                -- 可观测性：工具调用记录
+                CREATE TABLE IF NOT EXISTS tool_calls (
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id     TEXT    NOT NULL,
+                    tool_name      TEXT    NOT NULL,
+                    arguments      TEXT    DEFAULT '',
+                    result_summary TEXT    DEFAULT '',
+                    created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_tool_calls_session
+                    ON tool_calls(session_id, id);
+
+                -- 可观测性：每轮 LLM 调用明细（token 消耗）
+                CREATE TABLE IF NOT EXISTS rounds (
+                    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id        TEXT    NOT NULL,
+                    prompt_tokens     INTEGER DEFAULT 0,
+                    completion_tokens INTEGER DEFAULT 0,
+                    total_tokens      INTEGER DEFAULT 0,
+                    created_at        DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_rounds_session
+                    ON rounds(session_id, id);
             """)
 
     def _load_history(self) -> List[Dict[str, Any]]:
@@ -141,6 +167,115 @@ class MemoryStore:
         """获取当前累加的 token 消耗"""
         return self.tokens
 
+    # ------------------------------------------------------------------ #
+    # 可观测性：工具调用与每轮 token 明细                                    #
+    # ------------------------------------------------------------------ #
+
+    def add_tool_call(self, tool_name: str, arguments: str = "", result_summary: str = "") -> None:
+        """记录一次工具调用（名称、参数、结果摘要）。"""
+        with self._get_conn() as conn:
+            conn.execute(
+                """INSERT INTO tool_calls (session_id, tool_name, arguments, result_summary)
+                   VALUES (?, ?, ?, ?)""",
+                (self.session_id, tool_name, arguments[:2000], result_summary[:2000])
+            )
+
+    def add_round(self, prompt_tokens: int, completion_tokens: int, total_tokens: int) -> None:
+        """记录一轮 LLM 调用的 token 消耗明细。"""
+        with self._get_conn() as conn:
+            conn.execute(
+                """INSERT INTO rounds (session_id, prompt_tokens, completion_tokens, total_tokens)
+                   VALUES (?, ?, ?, ?)""",
+                (self.session_id, prompt_tokens, completion_tokens, total_tokens)
+            )
+
+    def get_observability_stats(self, pricing: Dict[str, float] = None, limit: int = 10) -> Dict[str, Any]:
+        """
+        聚合当前会话的可观测性统计：
+        - totals：token 总量、轮数、工具调用次数、预估成本
+        - tool_call_stats：按工具聚合调用次数
+        - recent_tool_calls / recent_rounds：最近明细（时间线）
+        pricing 格式：{"prompt": 每千token价格, "completion": 每千token价格}，None 则不估算成本
+        """
+        with self._get_conn() as conn:
+            row = conn.execute(
+                """SELECT
+                     COALESCE(SUM(prompt_tokens), 0)     AS prompt,
+                     COALESCE(SUM(completion_tokens), 0) AS completion,
+                     COALESCE(SUM(total_tokens), 0)      AS total,
+                     COUNT(*)                            AS rounds
+                   FROM rounds WHERE session_id = ?""",
+                (self.session_id,)
+            ).fetchone()
+
+            tool_count = conn.execute(
+                "SELECT COUNT(*) AS c FROM tool_calls WHERE session_id = ?",
+                (self.session_id,)
+            ).fetchone()["c"]
+
+            tool_stats = conn.execute(
+                """SELECT tool_name, COUNT(*) AS count, MAX(created_at) AS last_used
+                   FROM tool_calls WHERE session_id = ?
+                   GROUP BY tool_name ORDER BY count DESC, last_used DESC""",
+                (self.session_id,)
+            ).fetchall()
+
+            recent_tools = conn.execute(
+                """SELECT tool_name, arguments, result_summary, created_at
+                   FROM tool_calls WHERE session_id = ?
+                   ORDER BY id DESC LIMIT ?""",
+                (self.session_id, limit)
+            ).fetchall()
+
+            recent_rounds = conn.execute(
+                """SELECT prompt_tokens, completion_tokens, total_tokens, created_at
+                   FROM rounds WHERE session_id = ?
+                   ORDER BY id DESC LIMIT ?""",
+                (self.session_id, limit)
+            ).fetchall()
+
+        prompt, completion, total = row["prompt"], row["completion"], row["total"]
+        cost = None
+        if pricing:
+            cost = round(
+                prompt * pricing.get("prompt", 0) / 1000
+                + completion * pricing.get("completion", 0) / 1000,
+                6
+            )
+
+        return {
+            "totals": {
+                "prompt_tokens": prompt,
+                "completion_tokens": completion,
+                "total_tokens": total,
+                "rounds": row["rounds"],
+                "tool_calls": tool_count,
+                "estimated_cost": cost,
+            },
+            "tool_call_stats": [
+                {"tool": r["tool_name"], "count": r["count"], "last_used": r["last_used"]}
+                for r in tool_stats
+            ],
+            "recent_tool_calls": [
+                {
+                    "tool": r["tool_name"],
+                    "arguments": r["arguments"],
+                    "result_summary": r["result_summary"],
+                    "created_at": r["created_at"],
+                }
+                for r in recent_tools
+            ],
+            "recent_rounds": [
+                {
+                    "prompt_tokens": r["prompt_tokens"],
+                    "completion_tokens": r["completion_tokens"],
+                    "total_tokens": r["total_tokens"],
+                    "created_at": r["created_at"],
+                }
+                for r in recent_rounds
+            ],
+        }
+
     def get_long_term_memory(self) -> str:
         """读取长期记忆（MEMORY.md）"""
         if os.path.exists(self.long_term_file):
@@ -157,9 +292,11 @@ class MemoryStore:
             f.write(memory_text)
 
     def clear_history(self):
-        """清空当前 session 的对话记录及 token 统计"""
+        """清空当前 session 的对话记录、token 统计及可观测性明细"""
         self.messages = []
         self.tokens = {"prompt": 0, "completion": 0}
         with self._get_conn() as conn:
             conn.execute("DELETE FROM messages WHERE session_id = ?", (self.session_id,))
             conn.execute("DELETE FROM tokens WHERE session_id = ?", (self.session_id,))
+            conn.execute("DELETE FROM tool_calls WHERE session_id = ?", (self.session_id,))
+            conn.execute("DELETE FROM rounds WHERE session_id = ?", (self.session_id,))

@@ -30,6 +30,9 @@ api_key   = os.environ.get("LLM_API_KEY")   or llm_config.get("api_key")
 base_url  = os.environ.get("LLM_BASE_URL")  or llm_config.get("base_url")
 model     = os.environ.get("LLM_MODEL")     or llm_config.get("model", "gpt-4o-mini")
 
+# 成本估算价格（每千 token 元），用于 /api/stats 的成本统计；未配置则不算成本
+llm_pricing = llm_config.get("pricing", {})
+
 # 接口鉴权 Token（可选）：环境变量 SMARTFLOW_API_TOKEN 优先，其次 config.yaml 的 server.api_token
 # 未配置时鉴权关闭（本地演示模式）；配置后所有 /api/* 接口需要 Authorization: Bearer <token>
 api_token = os.environ.get("SMARTFLOW_API_TOKEN") or server_config.get("api_token", "")
@@ -44,7 +47,8 @@ manager = SessionManager(
     workspace_dir=workspace_path,
     openai_api_key=api_key,
     base_url=base_url,
-    model=model
+    model=model,
+    pricing=llm_pricing
 )
 
 # 会话 ID 校验：仅允许字母数字与 -_（用于路径参数，防注入）
@@ -164,6 +168,14 @@ async def get_history(session: str = "default"):
         "messages": agent.memory.messages,
         "tokens": agent.memory.get_tokens()
     }
+
+@app.get("/api/stats")
+async def get_stats(session: str = "default"):
+    """
+    获取指定会话的可观测性统计：
+    token 总量 / 轮数 / 工具调用次数 / 预估成本 + 工具调用排行与最近时间线。
+    """
+    return manager.get_stats(session)
 
 @app.get("/api/outputs")
 async def list_outputs():

@@ -107,18 +107,35 @@ class TinyAgent:
         })
         
         # 2. 下沉进核心 Loop 返回流
+        # 记录可观测性数据：tool_call 明细（start 缓存参数 → end 落库）与每轮 token
+        tool_call_buffer: Dict[str, Dict[str, Any]] = {}
         async for event in self.loop.run(messages_payload):
-            if event["type"] == "turn_end":
+            etype = event["type"]
+            if etype == "turn_end":
                 # 解析本轮的所有辅助和回复消息并添加到 Memory 中
                 new_msgs = event.get("new_messages", [])
                 for idx, msg in enumerate(new_msgs):
                     # User 的不重复添加，其余添加进记忆（比如 assistant 和 tool）
                     self.memory.add_message(msg)
-            elif event["type"] == "token_usage":
-                # 保存 token 到持久化记忆
+            elif etype == "token_usage":
+                # 保存 token 到持久化记忆 + 记录本轮明细（可观测性）
                 p_tokens = event.get("prompt_tokens", 0)
                 c_tokens = event.get("completion_tokens", 0)
+                t_tokens = event.get("total_tokens", p_tokens + c_tokens)
                 self.memory.add_tokens(p_tokens, c_tokens)
+                self.memory.add_round(p_tokens, c_tokens, t_tokens)
+                yield event
+            elif etype == "tool_call_start":
+                # 缓存参数，等 tool_call_end 时合成一条完整记录
+                tool_call_buffer[event.get("id", "")] = event
+                yield event
+            elif etype == "tool_call_end":
+                start = tool_call_buffer.pop(event.get("id", ""), {})
+                self.memory.add_tool_call(
+                    tool_name=event.get("name") or start.get("name", ""),
+                    arguments=start.get("arguments", ""),
+                    result_summary=event.get("result_summary", ""),
+                )
                 yield event
             else:
                 yield event

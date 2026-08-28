@@ -62,6 +62,7 @@ SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Ac
 | **对话记忆** | 短期历史窗口（安全截断）+ 长期 Markdown 记忆 |
 | **技能插件系统** | 放一个 `SKILL.md` 即装即用，两档加载策略节省 token |
 | **评估集** | mock/real 双模式端到端任务，成功率 / 轮数 / token 报告 |
+| **可观测性** | 工具调用时间线 + token 明细 + 成本估算（`/api/stats`） |
 | **安全防护** | Shell 黑名单 + 执行超时 + 输出截断 + 可选接口鉴权 |
 
 ## 🏗️ 核心架构
@@ -357,6 +358,7 @@ python test_hitl.py
 | `GET` | `/api/status` | 获取技能和工具列表 |
 | `GET` | `/api/memory?session=` | 查看指定会话记忆状态 |
 | `GET` | `/api/history?session=` | 获取指定会话完整历史 |
+| `GET` | `/api/stats?session=` | 可观测性统计（token/成本/工具调用时间线） |
 | `POST` | `/api/upload` | 上传文件到工作区 |
 | `DELETE` | `/api/outputs/{name}` | 删除工作区输出文件 |
 | `GET` | `/api/outputs` | 列出工作区输出文件 |
@@ -370,7 +372,7 @@ python test_hitl.py
 
 - [x] **多会话隔离** — 已实现：SessionManager + 前端会话面板 ✅
 - [x] **评估集（Eval）** — 已实现：mock/real 双模式 + 成功率报告 ✅
-- [ ] **可观测性面板** — token 消耗、成本、工具调用时间线可视化
+- [x] **可观测性面板** — 已实现：token 明细 + 成本估算 + 工具调用时间线 ✅
 - [ ] **上下文压缩** — 历史超窗口时用 LLM 摘要，替代粗暴截断
 - [ ] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
 - [ ] **前端工程化** — 迁移到 React/Vite，组件化 + 测试
