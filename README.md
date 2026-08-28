@@ -5,26 +5,64 @@
 <h1 align="center">SmartFlow</h1>
 
 <p align="center">
-  <strong>轻量级 AI Agent 框架，内置 Human-in-the-Loop 人工审批机制</strong><br/>
+  <strong>轻量级 AI Agent 框架：ReAct + HITL 人工审批 + 多会话 + RAG 知识库</strong><br/>
   用最少的代码，实现生产可用的 Agent 核心能力
 </p>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/version-1.1.0-4A90D9?style=flat-square" alt="Version" />
   <img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square&logo=python" alt="Python" />
   <img src="https://img.shields.io/badge/framework-FastAPI-009688?style=flat-square&logo=fastapi" alt="FastAPI" />
   <img src="https://img.shields.io/badge/LLM-OpenAI%20Compatible-412991?style=flat-square&logo=openai" alt="LLM" />
   <img src="https://img.shields.io/badge/feature-HITL%20Approval-ff6b35?style=flat-square" alt="HITL" />
+  <img src="https://img.shields.io/badge/feature-RAG-00c853?style=flat-square" alt="RAG" />
 </p>
 
 ---
 
 ## ✨ 项目简介
 
-SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Acting）模式，支持大模型自主决策多轮工具调用。
+SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Acting）模式，支持大模型自主决策多轮工具调用，并以流式方式输出。
 
-在标准 Agent 能力之上，SmartFlow 实现了 **Human-in-the-Loop（HITL）人工审批机制**：当 Agent 想执行高风险操作（如 Shell 命令）时，自动暂停并向用户弹出审批窗口，用户确认后才继续执行，可以解决 Agent 失控问题。
+在标准 Agent 能力之上，SmartFlow 面向**生产可用**做了四件事：
 
-> 📚 **配套学习资料**：项目附带 [面试复习手册](./面试复习手册.md)（1289 行），逐行讲解代码 + Agent 开发岗面试题精讲，面试前必看。
+1. **安全可控** — Human-in-the-Loop（HITL）人工审批：高风险工具（如 Shell 命令）执行前自动暂停、弹窗确认，防止 Agent 失控
+2. **多用户可用** — 会话隔离：每个会话独立的记忆与审批状态，无状态组件全局共享，支持并行服务
+3. **私域知识** — RAG 知识库：本地向量检索，Agent 可回答私域文档问题，减少幻觉
+4. **质量可衡量** — 内置评估集（Eval Harness）：端到端任务量化 Agent 行为，输出成功率与成本报告
+
+> 📚 **配套学习资料**：项目附带 [面试复习手册](./面试复习手册.md)，逐行讲解代码 + Agent 开发岗面试题精讲，面试前必看。
+
+## 📑 目录
+
+- [核心特性](#-核心特性)
+- [核心架构](#-核心架构)
+- [Human-in-the-Loop 审批机制](#-human-in-the-loop-审批机制)
+- [多会话隔离](#-多会话隔离)
+- [评估集（Eval Harness）](#-评估集eval-harness)
+- [技术栈](#-技术栈)
+- [快速开始](#-快速开始)
+- [Docker 部署](#-docker-部署)
+- [接口鉴权](#-接口鉴权可选)
+- [项目结构](#-项目结构)
+- [运行测试](#-运行测试)
+- [API 接口](#-api-接口)
+- [Roadmap](#-roadmap计划中)
+
+## ✨ 核心特性
+
+| 特性 | 说明 |
+|---|---|
+| **ReAct 循环引擎** | 大模型自主决策多轮工具调用，`max_iterations=10` 防死循环 |
+| **流式输出** | AsyncGenerator + SSE 全链路流式，首字响应 < 1s |
+| **流式 Tool Call 解析** | 碎片化 tool_call 拼接，兼容 OpenAI / DeepSeek / 通义千问等多后端 |
+| **HITL 人工审批** | 高风险工具执行前弹窗确认，`asyncio.Event` 异步等待，超时自动拒绝 |
+| **多会话隔离** | 按会话隔离记忆与审批，无状态组件全局共享，同会话并发自动串行 |
+| **RAG 知识库** | 本地 Embedding + ChromaDB 向量检索，支持 .txt/.md 导入 |
+| **对话记忆** | 短期历史窗口（安全截断）+ 长期 Markdown 记忆 |
+| **技能插件系统** | 放一个 `SKILL.md` 即装即用，两档加载策略节省 token |
+| **评估集** | mock/real 双模式端到端任务，成功率 / 轮数 / token 报告 |
+| **安全防护** | Shell 黑名单 + 执行超时 + 输出截断 + 可选接口鉴权 |
 
 ## 🏗️ 核心架构
 
@@ -42,6 +80,19 @@ SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Ac
                                               ↓
                                         循环直到模型完成 → MemoryStore 保存
 ```
+
+**核心模块：**
+
+| 模块 | 职责 |
+|---|---|
+| `agent.py` | 总指挥：组装共享组件 + 会话状态 |
+| `session.py` | 会话管理器：隔离、审批路由、并发锁 |
+| `loop.py` | ReAct 循环引擎 + HITL 审批逻辑 |
+| `tools.py` | 工具注册、执行、风险分级 + ApprovalManager |
+| `memory.py` | 短期（SQLite）+ 长期（Markdown）记忆 |
+| `skills.py` | Markdown 技能加载器 |
+| `context.py` | 上下文 & 系统提示词组装 |
+| `knowledge.py` | RAG 知识库（ChromaDB + 本地 Embedding） |
 
 ## 🔒 Human-in-the-Loop 审批机制
 
@@ -76,16 +127,62 @@ event.set() 唤醒协程 → 根据结果执行或跳过工具
 
 超时（默认 60 秒）自动拒绝，安全兜底。
 
-## 🛠️ 完整功能列表
+## 👥 多会话隔离
 
-- **ReAct 循环引擎** — 大模型自主决策多轮工具调用，`max_iterations=10` 防死循环
-- **流式输出** — AsyncGenerator + SSE 全链路流式，首字响应 < 1s
-- **流式 Tool Call 解析** — 碎片化 tool_call 拼接，兼容 OpenAI / DeepSeek / 通义千问等多后端
-- **HITL 人工审批** — 高风险工具执行前弹窗确认，asyncio.Event 异步等待
-- **多会话隔离** — `SessionManager` 按会话隔离记忆与审批，无状态组件全局共享，同一会话并发请求自动串行
-- **对话记忆** — 短期历史窗口（安全截断，保证工具调用链完整）+ 长期 Markdown 记忆
-- **技能插件系统** — 放一个 `SKILL.md` 即装即用，两档加载策略节省 token
-- **安全防护** — Shell 命令黑名单 + 执行超时 + 输出截断 + 可选接口鉴权
+多用户/多会话并行时，每个会话的**记忆与审批状态完全隔离**，互不污染。
+
+**设计核心：无状态组件共享 + 有状态组件隔离**
+
+| 组件 | 类型 | 处理方式 |
+|---|---|---|
+| LLM client / skills / knowledge / tools | 无状态/只读 | **全局共享**，只构建一次 |
+| MemoryStore / ApprovalManager | 有状态 | **按会话隔离**（SQLite 自带 `session_id` 字段，零改动） |
+
+**三个并发边界：**
+
+1. **审批跨会话路由** — `/api/approve` 带 `session` 字段，定位到正确的 ApprovalManager
+2. **同会话并发串行** — 每个会话一把 `asyncio.Lock`，防止消息乱序
+3. **锁覆盖整个流式周期** — 流式生成期间插入的新请求会被排队，保证工具调用链完整
+
+前端左侧栏提供会话面板：新建 / 切换 / 删除，当前会话存 localStorage。
+
+## 📊 评估集（Eval Harness）
+
+用端到端任务量化 Agent 的行为质量，输出成功率 / 平均轮数 / 平均 token / 失败原因。
+
+```bash
+python eval/run_eval.py                    # mock 模式（零成本，验证工具调用链）
+python eval/run_eval.py --mode real        # 真实 LLM 模式（需有效 API Key，校验产物）
+python eval/run_eval.py --mode all         # 全部任务
+python eval/run_eval.py --task shell_echo  # 只跑指定任务
+```
+
+- **mock 模式**：脚本化 FakeClient 让模型按计划调用工具，验证工具序列是否正确执行、结果是否正确回传（含 HITL 审批链路自动同意）
+- **real 模式**：真实模型跑完整链路，按任务声明的 checks 校验输出文件/关键词，并统计 token 消耗
+
+输出示例：
+
+```
+ Task                     Mode   Status   Rounds  Tokens   Detail
+ edit_file_flow           mock   PASS     3       0        tools=['read_file', 'edit_file']
+ shell_echo               mock   PASS     2       0        tools=['exec']
+ Summary: 5/5 passed (100.0%)  avg_rounds=2.4  avg_tokens=0  skipped=0
+```
+
+报告同时保存为 `eval/report.json`。任务定义在 `eval/tasks/*.json`，新增任务只需加一个 JSON。
+
+## 🛠️ 技术栈
+
+| 层 | 选型 |
+|---|---|
+| 后端框架 | FastAPI + Uvicorn（异步） |
+| LLM 接入 | OpenAI 兼容 API（DeepSeek / 通义千问 / OpenAI / Infini-AI…） |
+| 对话存储 | SQLite（会话隔离 + token 统计） |
+| 向量检索 | ChromaDB + sentence-transformers（本地 Embedding，中英文） |
+| 长期记忆 | Markdown 文件（MEMORY.md） |
+| 前端 | 单文件 HTML + Tailwind CSS + marked.js（无构建步骤） |
+| 测试 | test_hitl.py / test_rag.py + 评估集 run_eval.py |
+| 部署 | Docker / docker-compose |
 
 ## 🚀 快速开始
 
@@ -233,6 +330,7 @@ python test_hitl.py
 ```
 
 输出示例：
+
 ```
 测试场景：用户将选择 【同意】
   [前端] 收到审批请求: 工具=exec
@@ -244,31 +342,6 @@ python test_hitl.py
   [用户] 已提交决定: 拒绝
   >>> 期望执行=False, 实际执行=False -> 测试通过 ✓
 ```
-
-## 📊 评估集（Eval Harness）
-
-用端到端任务量化 Agent 的行为质量，输出成功率 / 平均轮数 / 平均 token / 失败原因。
-
-```bash
-python eval/run_eval.py                    # mock 模式（零成本，验证工具调用链）
-python eval/run_eval.py --mode real        # 真实 LLM 模式（需有效 API Key，校验产物）
-python eval/run_eval.py --mode all         # 全部任务
-python eval/run_eval.py --task shell_echo  # 只跑指定任务
-```
-
-- **mock 模式**：脚本化 FakeClient 让模型按计划调用工具，验证工具序列是否正确执行、结果是否正确回传（含 HITL 审批链路自动同意）
-- **real 模式**：真实模型跑完整链路，按任务声明的 checks 校验输出文件/关键词，并统计 token 消耗
-
-输出示例：
-
-```
- Task                     Mode   Status   Rounds  Tokens   Detail
- edit_file_flow           mock   PASS     3       0        tools=['read_file', 'edit_file']
- shell_echo               mock   PASS     2       0        tools=['exec']
- Summary: 5/5 passed (100.0%)  avg_rounds=2.4  avg_tokens=0  skipped=0
-```
-
-报告同时保存为 `eval/report.json`。任务定义在 `eval/tasks/*.json`，新增任务只需加一个 JSON。
 
 ## 📡 API 接口
 
@@ -301,3 +374,9 @@ python eval/run_eval.py --task shell_echo  # 只跑指定任务
 - [ ] **上下文压缩** — 历史超窗口时用 LLM 摘要，替代粗暴截断
 - [ ] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
 - [ ] **前端工程化** — 迁移到 React/Vite，组件化 + 测试
+
+---
+
+<p align="center">
+  <sub>SmartFlow · 用最少的代码，实现生产可用的 Agent 核心能力</sub>
+</p>
