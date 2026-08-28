@@ -1,5 +1,5 @@
 import os
-from typing import AsyncGenerator, Dict, Any, Callable
+from typing import AsyncGenerator, Dict, Any, Callable, Optional
 
 from openai import AsyncOpenAI
 
@@ -10,43 +10,82 @@ from .context import ContextBuilder
 from .loop import AgentLoop
 from .knowledge import KnowledgeBase
 
+
 class TinyAgent:
     """
     高层封装：TinyAgent
     这是提供给外部调用的主要入口。内部组合了 Memory、Skills、Context 和 Loop 等组件。
+
+    多会话设计：
+    - 无状态组件（LLM client / skills / knowledge / tools）通过 `build_shared()` 构建一次，
+      由 SessionManager 全局共享，避免每个会话重复加载。
+    - 有状态组件（MemoryStore / ApprovalManager）按 `session_id` 隔离。
     """
-    def __init__(self, workspace_dir: str, openai_api_key: str = None, base_url: str = None, model: str = "gpt-4o-mini"):
+    def __init__(self, workspace_dir: str, session_id: str = "default",
+                 shared: Optional[Dict[str, Any]] = None,
+                 openai_api_key: str = None, base_url: str = None,
+                 model: str = "gpt-4o-mini"):
         """
         初始化 Agent。
         :param workspace_dir: 工作区目录（用于存放 skills 和 memory）
+        :param session_id: 会话 ID，用于隔离对话记忆与审批状态
+        :param shared: 共享组件字典（由 SessionManager 传入）；不传则自行构建
         :param openai_api_key: OpenAI 兼容的 API Key。可使用环境变量 OPENAI_API_KEY 作为备用
         :param base_url: OpenAI 兼容接口的代理/服务地址。例如 Deepseek 的 endpoint
         :param model: 模型名
         """
         self.workspace_dir = workspace_dir
+        self.session_id = session_id
         os.makedirs(workspace_dir, exist_ok=True)
-        
-        # 初始化外部模型客户端
-        api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-                raise ValueError("未提供 openai_api_key 或环境变量 OPENAI_API_KEY 中找不到 API Key。")
-            
-        api_kwargs = {"api_key": api_key}
-        if base_url:
-            api_kwargs["base_url"] = base_url
-            
-        self.client = AsyncOpenAI(**api_kwargs)
-        
-        # 初始化四大核心金刚
-        self.memory = MemoryStore(workspace_dir)
-        self.skills = SkillsLoader(workspace_dir)
-        self.knowledge = KnowledgeBase(workspace_dir)
-        self.tools = ToolRegistry(knowledge_base=self.knowledge)
+
+        # 共享组件：外部传入则复用（多会话共享），否则自行构建（兼容单会话用法）
+        if shared is None:
+            shared = TinyAgent.build_shared(workspace_dir, openai_api_key, base_url, model)
+        self.shared = shared
+
+        self.client = shared["client"]
+        self.skills = shared["skills"]
+        self.knowledge = shared["knowledge"]
+        self.tools = shared["tools"]
+
+        # 会话隔离状态
+        self.memory = MemoryStore(workspace_dir, session_id=session_id)
         self.context = ContextBuilder(self.memory, self.skills, workspace_dir)
         # 人工审批管理器（Human-in-the-Loop）：高风险工具执行前请求用户确认
+        # 每个会话独立，避免跨会话互相 resolve
         self.approval_manager = ApprovalManager()
         self.loop = AgentLoop(self.client, self.tools, model=model,
                               approval_manager=self.approval_manager)
+
+    @staticmethod
+    def build_shared(workspace_dir: str, openai_api_key: str = None,
+                     base_url: str = None, model: str = "gpt-4o-mini") -> Dict[str, Any]:
+        """
+        构建全局共享的组件（只构建一次，多个会话复用）：
+        - LLM 客户端（无状态）
+        - 技能加载器（只读）
+        - 知识库（只读，embedding 模型本身是模块级懒加载单例）
+        - 工具注册中心（只读）
+        """
+        api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("未提供 openai_api_key 或环境变量 OPENAI_API_KEY 中找不到 API Key。")
+
+        api_kwargs = {"api_key": api_key}
+        if base_url:
+            api_kwargs["base_url"] = base_url
+
+        client = AsyncOpenAI(**api_kwargs)
+        skills = SkillsLoader(workspace_dir)
+        knowledge = KnowledgeBase(workspace_dir)
+        tools = ToolRegistry(knowledge_base=knowledge)
+
+        return {
+            "client": client,
+            "skills": skills,
+            "knowledge": knowledge,
+            "tools": tools,
+        }
 
     async def chat_stream(self, user_message: str) -> AsyncGenerator[Dict[str, Any], None]:
         """

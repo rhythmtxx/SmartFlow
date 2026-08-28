@@ -1,6 +1,9 @@
 import json
 import logging
+import os
+import re
 import secrets
+import uuid
 from typing import AsyncGenerator
 
 from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
@@ -8,9 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Request, UploadFile, File
 from pydantic import BaseModel
 
-import os
 import yaml
-from core.agent import TinyAgent
+from core.session import SessionManager
 
 # 加载配置：环境变量优先，其次 config.yaml，最后默认值
 # Docker 部署时通过 -e 参数传入，不需要把 Key 写进镜像
@@ -36,12 +38,17 @@ workspace_path = "./workspace"
 outputs_path = os.path.join(workspace_path, "outputs")
 os.makedirs(outputs_path, exist_ok=True)
 
-agent = TinyAgent(
+# 会话管理器：全局共享无状态组件（LLM client/skills/knowledge/tools），
+# 按 session_id 隔离对话记忆与审批状态（多会话支持）
+manager = SessionManager(
     workspace_dir=workspace_path,
     openai_api_key=api_key,
     base_url=base_url,
     model=model
 )
+
+# 会话 ID 校验：仅允许字母数字与 -_（用于路径参数，防注入）
+_SESSION_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 app = FastAPI(title="SmartFlow API")
 
@@ -82,25 +89,32 @@ async def root():
 
 class ChatRequest(BaseModel):
     message: str
+    session: str = "default"
 
 class ApprovalRequest(BaseModel):
     approval_id: str
     approved: bool
+    session: str = "default"
 
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest):
     """
-    流式对话接口。使用 GET / POST 无所谓，这里为了获取 query 用 POST 接收 message 后，
-    将其转换成 SSE (Server-Sent Events) 返回。
+    流式对话接口（SSE）。
+    body 可带 session 字段（默认 default），不同会话记忆互相隔离。
+    同一会话的并发请求通过 per-session Lock 串行化，
+    且锁覆盖整个流式生成周期，防止流式期间插入新请求破坏工具调用链。
     """
+    agent = manager.get(req.session)
+
     async def sse_generator() -> AsyncGenerator[str, None]:
-        # 遍历 agent_loop 的每一个步骤触发的字典事件
-        async for event in agent.chat_stream(req.message):
-            # 将 python 字典格式化为 JSON 字符串
-            data_str = json.dumps(event, ensure_ascii=False)
-            # SSE 要求格式以 data: 开头，以 \n\n 结尾
-            yield f"data: {data_str}\n\n"
-            
+        async with manager.lock(req.session):
+            # 遍历 agent_loop 的每一个步骤触发的字典事件
+            async for event in agent.chat_stream(req.message):
+                # 将 python 字典格式化为 JSON 字符串
+                data_str = json.dumps(event, ensure_ascii=False)
+                # SSE 要求格式以 data: 开头，以 \n\n 结尾
+                yield f"data: {data_str}\n\n"
+
     # 指定媒体类型为 text/event-stream 这是 SSE 标准的配置
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
 
@@ -110,8 +124,9 @@ async def approve_endpoint(req: ApprovalRequest):
     人工审批接口 (Human-in-the-Loop)。
     前端在收到 approval_required 事件后弹窗，用户点击同意/拒绝，
     通过本接口把结果回传，唤醒挂起在 loop 中的高风险工具调用。
+    session 字段用于把审批路由到正确的会话（每个会话有独立的审批管理器）。
     """
-    ok = agent.resolve_approval(req.approval_id, req.approved)
+    ok = manager.resolve_approval(req.session, req.approval_id, req.approved)
     if ok:
         return {"status": "ok", "approved": req.approved}
     # 请求不存在或已超时被清理
@@ -119,16 +134,13 @@ async def approve_endpoint(req: ApprovalRequest):
 
 @app.get("/api/status")
 async def get_status():
-    """获取侧边栏展示的相关状态（刷新并返回技能和支持的工具）"""
-    agent.skills.load_all_skills() # Dynamic reload
-    return {
-        "skills": agent.get_skills_summary(),
-        "tools": agent.get_tools_summary()
-    }
+    """获取侧边栏展示的相关状态（技能/工具为全局共享组件，与会话无关）"""
+    return manager.get_status()
 
 @app.get("/api/memory")
-async def get_memory():
-    """获取当前 agent 的上下文和长期记忆"""
+async def get_memory(session: str = "default"):
+    """获取指定会话的上下文和长期记忆"""
+    agent = manager.get(session)
     messages = agent.memory.get_messages(window_size=20)
     system_prompt = agent.context.build_system_prompt()
     long_term_memory = agent.memory.get_long_term_memory()
@@ -145,8 +157,9 @@ async def get_memory():
     }
 
 @app.get("/api/history")
-async def get_history():
-    """获取完整的历史会话和累积 token 消耗用于前端恢复渲染"""
+async def get_history(session: str = "default"):
+    """获取指定会话的完整历史与累积 token 消耗用于前端恢复渲染"""
+    agent = manager.get(session)
     return {
         "messages": agent.memory.messages,
         "tokens": agent.memory.get_tokens()
@@ -223,10 +236,44 @@ async def upload_file(file: UploadFile = File(...)):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/clear")
-async def clear_memory():
-    """清理内存会话记录"""
-    agent.clear_memory()
+async def clear_memory(session: str = "default"):
+    """清空指定会话的记忆（只影响该会话）"""
+    manager.clear(session)
     return {"status": "ok"}
+
+# ------------------------------------------------------------------ #
+# 会话管理（多会话隔离）                                                #
+# ------------------------------------------------------------------ #
+
+@app.get("/api/sessions")
+async def list_sessions():
+    """获取所有会话的列表与统计（消息数、最后活跃时间）"""
+    sessions = await _to_thread(manager.list_sessions)
+    return {"sessions": sessions}
+
+@app.post("/api/sessions")
+async def create_session():
+    """新建一个会话，返回 session_id"""
+    session_id = uuid.uuid4().hex[:12]
+    manager.get(session_id)  # 预创建：初始化 memory 目录与表
+    return {"session_id": session_id}
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """删除指定会话（记忆与统计一并清除）"""
+    if not _SESSION_ID_RE.match(session_id):
+        return {"status": "error", "message": "Invalid session_id"}
+    if session_id == "default":
+        return {"status": "error", "message": "默认会话不能删除"}
+    ok = await _to_thread(manager.delete, session_id)
+    if ok:
+        return {"status": "success", "message": f"会话 {session_id} 已删除"}
+    return {"status": "error", "message": "会话不存在或删除失败"}
+
+# 同步函数包装到线程池，避免阻塞事件循环（SQLite 查询）
+async def _to_thread(func, *args):
+    import asyncio
+    return await asyncio.to_thread(func, *args)
 
 @app.post("/api/knowledge/add")
 async def add_to_knowledge(file: UploadFile = File(...)):
@@ -251,7 +298,7 @@ async def add_to_knowledge(file: UploadFile = File(...)):
     except Exception as e:
         return {"status": "error", "message": f"文件保存失败: {e}"}
 
-    result = agent.knowledge.add_document(save_path)
+    result = manager.shared_components()["knowledge"].add_document(save_path)
     if result["success"]:
         return {
             "status": "ok",
@@ -264,12 +311,12 @@ async def add_to_knowledge(file: UploadFile = File(...)):
 @app.get("/api/knowledge/stats")
 async def knowledge_stats():
     """获取知识库统计信息"""
-    return agent.knowledge.get_stats()
+    return manager.shared_components()["knowledge"].get_stats()
 
 @app.delete("/api/knowledge/clear")
 async def clear_knowledge():
     """清空知识库"""
-    agent.knowledge.clear()
+    manager.shared_components()["knowledge"].clear()
     return {"status": "ok", "message": "知识库已清空"}
 
 if __name__ == "__main__":

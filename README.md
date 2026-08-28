@@ -77,9 +77,10 @@ event.set() 唤醒协程 → 根据结果执行或跳过工具
 - **流式输出** — AsyncGenerator + SSE 全链路流式，首字响应 < 1s
 - **流式 Tool Call 解析** — 碎片化 tool_call 拼接，兼容 OpenAI / DeepSeek / 通义千问等多后端
 - **HITL 人工审批** — 高风险工具执行前弹窗确认，asyncio.Event 异步等待
+- **多会话隔离** — `SessionManager` 按会话隔离记忆与审批，无状态组件全局共享，同一会话并发请求自动串行
 - **对话记忆** — 短期历史窗口（安全截断，保证工具调用链完整）+ 长期 Markdown 记忆
 - **技能插件系统** — 放一个 `SKILL.md` 即装即用，两档加载策略节省 token
-- **安全防护** — Shell 命令黑名单 + 执行超时 + 输出截断
+- **安全防护** — Shell 命令黑名单 + 执行超时 + 输出截断 + 可选接口鉴权
 
 ## 🚀 快速开始
 
@@ -207,7 +208,8 @@ SmartFlow/
 ├── 面试复习手册.md      # 代码讲解 + 面试题精讲
 ├── static/             # 前端页面
 └── core/               # 核心模块
-    ├── agent.py        #   总指挥，组装所有组件
+    ├── agent.py        #   总指挥，组装所有组件（支持共享组件注入）
+    ├── session.py      #   会话管理器：多会话隔离 + 审批路由 + 并发锁
     ├── loop.py         #   ReAct 循环引擎 + HITL 审批逻辑
     ├── tools.py        #   工具注册、执行、风险分级 + ApprovalManager
     ├── memory.py       #   短期（SQLite）+ 长期（Markdown）记忆管理
@@ -239,25 +241,30 @@ python test_hitl.py
 
 ## 📡 API 接口
 
+> 会话参数：`/api/chat`（body 的 `session` 字段）、`/api/history`、`/api/memory`、`/api/clear`（query 的 `session` 参数）用于指定会话，默认 `default`；不同会话的记忆互相隔离。
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| `POST` | `/api/chat` | 流式对话（SSE） |
-| `POST` | `/api/approve` | 提交工具审批结果（HITL） |
+| `POST` | `/api/chat` | 流式对话（SSE，带 `session`） |
+| `POST` | `/api/approve` | 提交工具审批结果（HITL，带 `session`） |
+| `GET` | `/api/sessions` | 会话列表（消息数、最后活跃时间） |
+| `POST` | `/api/sessions` | 新建会话 |
+| `DELETE` | `/api/sessions/{id}` | 删除会话 |
 | `GET` | `/api/status` | 获取技能和工具列表 |
-| `GET` | `/api/memory` | 查看记忆状态 |
-| `GET` | `/api/history` | 获取完整对话历史 |
+| `GET` | `/api/memory?session=` | 查看指定会话记忆状态 |
+| `GET` | `/api/history?session=` | 获取指定会话完整历史 |
 | `POST` | `/api/upload` | 上传文件到工作区 |
 | `DELETE` | `/api/outputs/{name}` | 删除工作区输出文件 |
 | `GET` | `/api/outputs` | 列出工作区输出文件 |
 | `GET` | `/api/outputs/download/{name}` | 下载/预览输出文件（受鉴权保护） |
-| `POST` | `/api/clear` | 清空对话记忆 |
+| `POST` | `/api/clear?session=` | 清空指定会话记忆 |
 | `POST` | `/api/knowledge/add` | 上传文档导入知识库（RAG，支持 .txt/.md） |
 | `GET` | `/api/knowledge/stats` | 获取知识库统计 |
 | `DELETE` | `/api/knowledge/clear` | 清空知识库 |
 
 ## 🗺️ Roadmap（计划中）
 
-- [ ] **多会话隔离** — 支持多用户/多会话并行，各自独立记忆
+- [x] **多会话隔离** — 已实现：SessionManager + 前端会话面板 ✅
 - [ ] **可观测性面板** — token 消耗、成本、工具调用时间线可视化
 - [ ] **上下文压缩** — 历史超窗口时用 LLM 摘要，替代粗暴截断
 - [ ] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱

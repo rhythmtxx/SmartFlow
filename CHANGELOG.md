@@ -7,6 +7,13 @@
 
 ## [Unreleased]
 
+### Added
+- **多会话隔离**：新增 `SessionManager`，按 `session_id` 隔离对话记忆与审批状态；无状态组件（LLM client / skills / knowledge / tools）全局共享、只构建一次
+- 会话管理 API：`GET/POST /api/sessions`、`DELETE /api/sessions/{id}`（列表聚合消息数/最后活跃时间，支持删除）
+- 前端左侧栏新增 **Sessions 面板**：会话列表、新建、切换、删除，当前会话存 localStorage
+- 现有接口支持会话参数：`/api/chat`（body）、`/api/history`、`/api/memory`、`/api/clear`（query）
+- 审批跨会话路由：`/api/approve` 带 `session` 字段，定位到正确的 ApprovalManager
+
 ### Security
 - 鉴权范围扩展：开启 Token 后，`/outputs/*` 文件下载同样受保护（此前可直接访问 Agent 生成的文件）
 - 新增受鉴权的下载接口 `GET /api/outputs/download/{filename}`，前端文件打开/下载改走该接口
