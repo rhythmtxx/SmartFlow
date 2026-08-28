@@ -1,0 +1,18 @@
+{
+  "name": "write_report",
+  "description": "Agent 应创建工作区输出文件（验证 write_file 链路）",
+  "mode": "mock",
+  "user_message": "请在工作区的 outputs 目录下创建一个 report.md，内容为项目周报的标题和三条要点。",
+  "mock": {
+    "tool_sequence": [
+      {
+        "tool": "write_file",
+        "arguments": {
+          "path": "outputs/report.md",
+          "content": "# 项目周报\n\n- 要点一：完成核心框架\n- 要点二：上线多会话隔离\n- 要点三：搭建评估集\n"
+        }
+      }
+    ],
+    "final_reply": "已创建 outputs/report.md。"
+  }
+}

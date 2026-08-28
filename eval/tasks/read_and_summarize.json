@@ -1,0 +1,18 @@
+{
+  "name": "read_and_summarize",
+  "description": "Agent 应读取工作区文件并总结内容（验证 read_file 链路）",
+  "mode": "mock",
+  "user_message": "请读取 outputs/sample.txt 文件，并总结它的主要内容。",
+  "setup_files": [
+    {
+      "path": "outputs/sample.txt",
+      "content": "SmartFlow 是一个轻量级 AI Agent 框架，基于 ReAct 模式。\n它支持 HITL 人工审批机制，还内置了 RAG 知识库用于私域文档检索。"
+    }
+  ],
+  "mock": {
+    "tool_sequence": [
+      { "tool": "read_file", "arguments": { "path": "outputs/sample.txt" } }
+    ],
+    "final_reply": "已读取并完成总结。文件主要介绍了 SmartFlow 框架的特点。"
+  }
+}

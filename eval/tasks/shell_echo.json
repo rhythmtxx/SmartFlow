@@ -1,0 +1,12 @@
+{
+  "name": "shell_echo",
+  "description": "Agent 应执行 Shell 命令，并完整走通 HITL 审批链路（高风险工具自动同意）",
+  "mode": "mock",
+  "user_message": "请执行命令 echo hello-from-eval，并把输出返回给我。",
+  "mock": {
+    "tool_sequence": [
+      { "tool": "exec", "arguments": { "command": "echo hello-from-eval" } }
+    ],
+    "final_reply": "命令已执行，输出为 hello-from-eval。"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "file_task_real",
+  "description": "真实模式：Agent 读取输入文件并生成总结报告（校验输出产物质量）",
+  "mode": "real",
+  "user_message": "请读取 outputs/input.md，生成一份 outputs/summary.md 总结，内容要包含 SmartFlow 和 HITL 两个关键词。",
+  "setup_files": [
+    {
+      "path": "outputs/input.md",
+      "content": "SmartFlow 是一个轻量级 AI Agent 框架。\n它实现了 HITL 人工审批机制，高风险工具执行前需要用户确认。"
+    }
+  ],
+  "checks": {
+    "output_file_exists": ["outputs/summary.md"],
+    "output_file_contains": [
+      { "path": "outputs/summary.md", "keywords": ["SmartFlow", "HITL"] }
+    ],
+    "final_reply_contains": ["完成"]
+  }
+}

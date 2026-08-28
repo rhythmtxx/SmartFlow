@@ -1,0 +1,16 @@
+{
+  "name": "rag_answer",
+  "description": "Agent 应检索知识库回答私域问题（验证 search_knowledge + RAG 全链路，需要 chromadb 依赖）",
+  "mode": "real",
+  "user_message": "根据知识库回答：SmartFlow 的 RAG 知识库使用什么向量数据库？",
+  "setup_files": [
+    {
+      "path": "docs/rag_intro.txt",
+      "content": "SmartFlow 内置了 RAG 知识库，使用 ChromaDB 作为向量数据库。\n检索时通过 sentence-transformers 的 paraphrase-multilingual-MiniLM-L12-v2 模型做文本向量化，\n用余弦相似度衡量语义相关度，支持中英文文档。"
+    }
+  ],
+  "setup_knowledge": ["docs/rag_intro.txt"],
+  "checks": {
+    "final_reply_contains": ["ChromaDB"]
+  }
+}

@@ -18,6 +18,10 @@ workspace/knowledge_db/
 _test_rag_tmp/
 _test_session_tmp/
 
+# 评估集运行时产物（临时工作区 + 报告）
+eval/tmp/
+eval/report.json
+
 # 遗留占位文件
 hello
 

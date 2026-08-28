@@ -8,6 +8,10 @@
 ## [Unreleased]
 
 ### Added
+- **评估集（Eval Harness）**：`eval/` 目录 + 7 个端到端任务，量化 Agent 行为质量
+  - **mock 模式**（零成本，CI 友好）：脚本化 FakeClient 验证工具调用链与 HITL 审批链路
+  - **real 模式**（需 LLM API Key）：真实模型跑完整链路，按 checks 校验输出产物（文件/关键词）并统计 token
+  - 结构化报告：成功率、平均轮数、平均 token、失败原因（控制台 + `eval/report.json`）
 - **多会话隔离**：新增 `SessionManager`，按 `session_id` 隔离对话记忆与审批状态；无状态组件（LLM client / skills / knowledge / tools）全局共享、只构建一次
 - 会话管理 API：`GET/POST /api/sessions`、`DELETE /api/sessions/{id}`（列表聚合消息数/最后活跃时间，支持删除）
 - 前端左侧栏新增 **Sessions 面板**：会话列表、新建、切换、删除，当前会话存 localStorage

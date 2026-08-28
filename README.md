@@ -205,6 +205,7 @@ SmartFlow/
 ├── requirements.txt    # Python 依赖（含 RAG：chromadb + sentence-transformers）
 ├── test_hitl.py        # HITL 功能单元测试（mock，无需真实 API）
 ├── test_rag.py         # RAG 知识库功能测试
+├── eval/               # 评估集：run_eval.py + tasks/*.json（mock/real 双模式）
 ├── 面试复习手册.md      # 代码讲解 + 面试题精讲
 ├── static/             # 前端页面
 └── core/               # 核心模块
@@ -239,6 +240,31 @@ python test_hitl.py
   >>> 期望执行=False, 实际执行=False -> 测试通过 ✓
 ```
 
+## 📊 评估集（Eval Harness）
+
+用端到端任务量化 Agent 的行为质量，输出成功率 / 平均轮数 / 平均 token / 失败原因。
+
+```bash
+python eval/run_eval.py                    # mock 模式（零成本，验证工具调用链）
+python eval/run_eval.py --mode real        # 真实 LLM 模式（需有效 API Key，校验产物）
+python eval/run_eval.py --mode all         # 全部任务
+python eval/run_eval.py --task shell_echo  # 只跑指定任务
+```
+
+- **mock 模式**：脚本化 FakeClient 让模型按计划调用工具，验证工具序列是否正确执行、结果是否正确回传（含 HITL 审批链路自动同意）
+- **real 模式**：真实模型跑完整链路，按任务声明的 checks 校验输出文件/关键词，并统计 token 消耗
+
+输出示例：
+
+```
+ Task                     Mode   Status   Rounds  Tokens   Detail
+ edit_file_flow           mock   PASS     3       0        tools=['read_file', 'edit_file']
+ shell_echo               mock   PASS     2       0        tools=['exec']
+ Summary: 5/5 passed (100.0%)  avg_rounds=2.4  avg_tokens=0  skipped=0
+```
+
+报告同时保存为 `eval/report.json`。任务定义在 `eval/tasks/*.json`，新增任务只需加一个 JSON。
+
 ## 📡 API 接口
 
 > 会话参数：`/api/chat`（body 的 `session` 字段）、`/api/history`、`/api/memory`、`/api/clear`（query 的 `session` 参数）用于指定会话，默认 `default`；不同会话的记忆互相隔离。
@@ -265,8 +291,8 @@ python test_hitl.py
 ## 🗺️ Roadmap（计划中）
 
 - [x] **多会话隔离** — 已实现：SessionManager + 前端会话面板 ✅
+- [x] **评估集（Eval）** — 已实现：mock/real 双模式 + 成功率报告 ✅
 - [ ] **可观测性面板** — token 消耗、成本、工具调用时间线可视化
 - [ ] **上下文压缩** — 历史超窗口时用 LLM 摘要，替代粗暴截断
 - [ ] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
-- [ ] **评估集（Eval）** — 任务链自动化测试，量化 Agent 成功率
 - [ ] **前端工程化** — 迁移到 React/Vite，组件化 + 测试

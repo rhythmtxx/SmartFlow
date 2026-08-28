@@ -1,0 +1,26 @@
+{
+  "name": "edit_file_flow",
+  "description": "Agent 应先读后改文件（验证 read_file -> edit_file 链式调用）",
+  "mode": "mock",
+  "user_message": "请读取 outputs/notes.md，然后把版本号从 v1.0 改成 v2.0。",
+  "setup_files": [
+    {
+      "path": "outputs/notes.md",
+      "content": "版本号: v1.0\n状态: 未发布"
+    }
+  ],
+  "mock": {
+    "tool_sequence": [
+      { "tool": "read_file", "arguments": { "path": "outputs/notes.md" } },
+      {
+        "tool": "edit_file",
+        "arguments": {
+          "path": "outputs/notes.md",
+          "old_str": "版本号: v1.0",
+          "new_str": "版本号: v2.0"
+        }
+      }
+    ],
+    "final_reply": "已将版本号更新为 v2.0。"
+  }
+}

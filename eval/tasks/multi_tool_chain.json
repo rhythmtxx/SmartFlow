@@ -1,0 +1,25 @@
+{
+  "name": "multi_tool_chain",
+  "description": "Agent 应跨工具完成数据读取与结果写入（验证 read_file -> write_file 组合）",
+  "mode": "mock",
+  "user_message": "请读取 outputs/data.csv，统计行数后把统计结果写入 outputs/stats.txt。",
+  "setup_files": [
+    {
+      "path": "outputs/data.csv",
+      "content": "name,value\nA,1\nB,2\nC,3"
+    }
+  ],
+  "mock": {
+    "tool_sequence": [
+      { "tool": "read_file", "arguments": { "path": "outputs/data.csv" } },
+      {
+        "tool": "write_file",
+        "arguments": {
+          "path": "outputs/stats.txt",
+          "content": "数据行数: 4（含表头）"
+        }
+      }
+    ],
+    "final_reply": "统计完成，结果已写入 outputs/stats.txt。"
+  }
+}
