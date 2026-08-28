@@ -14,8 +14,9 @@ workspace/memory/
 workspace/outputs/
 workspace/knowledge_db/
 
-# 测试产生的临时目录（test_rag.py）
+# 测试产生的临时目录（test_rag.py / session 测试）
 _test_rag_tmp/
+_test_session_tmp/
 
 # 遗留占位文件
 hello
