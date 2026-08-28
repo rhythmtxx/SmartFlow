@@ -74,7 +74,7 @@
 
 ### Added
 - 轻量级 AI Agent 框架：**ReAct 循环引擎**（`max_iterations` 防死循环、流式 tool_call 碎片重组）
-- **Human-in-the-Loop 人工审批机制**（核心原创功能）：高风险工具（Shell）执行前弹窗确认，`asyncio.Event` 异步挂起/唤醒不阻塞其他请求，超时自动拒绝
+- **Human-in-the-Loop 人工审批机制**（核心亮点功能）：高风险工具（Shell）执行前弹窗确认，`asyncio.Event` 异步挂起/唤醒不阻塞其他请求，超时自动拒绝
 - 流式输出（SSE），首字响应 < 1s，兼容 OpenAI / DeepSeek / 通义千问等 OpenAI 兼容后端
 - 工具系统：`read_file` / `write_file` / `edit_file` / `exec`（含高危命令黑名单、执行超时、输出截断）
 - 技能插件系统：放一个 `SKILL.md` 即装即用，两档加载策略（`always_load` 常驻 / 按需读取）节省 token

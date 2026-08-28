@@ -45,7 +45,12 @@ SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Ac
 
 ## 🔒 Human-in-the-Loop 审批机制
 
-SmartFlow 的核心原创功能。基于 `asyncio.Event` 实现异步审批等待，不阻塞其他用户请求。
+Human-in-the-Loop（HITL）是 Agent 安全控制领域的常见设计模式（OpenAI Function Calling、LangChain 等均有类似机制）。SmartFlow 提供了自己的轻量实现：
+
+- 基于 `asyncio.Event` 实现**异步审批等待**——挂起的是单个工具调用协程，不阻塞服务器，同一进程内可并行服务多个请求
+- 工具**风险分级**（low / medium / high），只有高风险工具才触发人工确认
+- **超时自动拒绝**（默认 60 秒），安全兜底
+- 审批状态按**会话隔离**，多用户并行互不干扰
 
 **工具风险分级：**
 
