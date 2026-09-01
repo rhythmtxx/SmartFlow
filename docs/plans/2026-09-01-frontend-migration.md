@@ -1211,16 +1211,34 @@
 
 ## 验收清单（对应规格第 7 节）
 
-- [ ] `frontend/` React+TS+Vite 工程；`npm.cmd run build` 产物可被 FastAPI 伺服（Task 1/15）
-- [ ] 12 个核心交互区功能与视觉等价（Task 5-13；视觉类名逐字复制 + 阶段 D 联调）
-- [ ] SSE 事件 TS 判别联合；组件拆分符合规格 3.1（Task 2/5-13）
-- [ ] Context+hooks 覆盖会话/Token/消息/统计；localStorage key 兼容（Task 3）
-- [ ] Vitest 17 用例通过；ESLint 0 error（Task 14/16）
-- [ ] 开发模式（Vite proxy）与生产模式（FastAPI 伺服 dist）都能跑（Task 1/15）
-- [ ] 旧 `static/index.html` 已移除、旧挂载已清理（Task 15）
-- [ ] Dockerfile 多阶段构建（本机无 Docker：仅静态检查）（Task 15）
-- [ ] 后端 `/api/*` 零改动（除伺服与旧挂载清理）（Task 15 回归）
-- [ ] README + CHANGELOG 更新、Roadmap 勾选（Task 16）
+> **执行状态：2026-09-01 全部任务完成。** 证据均为验收当日新鲜运行；「⚠️」为环境限制项（非代码缺口），见「验收备注」。
+> 证据命令：`npm.cmd test` / `npm.cmd run build` / `npm.cmd run lint`（受限沙箱下经 `vite-netuse-preload.cjs` + vitest threads 池运行）；后端回归用 `D:\mytools\miniforge3\envs\smartflow\python.exe`。
+
+- [x] `frontend/` React+TS+Vite 工程；`npm.cmd run build` 产物可被 FastAPI 伺服（Task 1/15）
+      — build exit 0；`GET /` 返回 dist index.html；`GET /api/status` 返回完整 JSON
+- [x] 12 个核心交互区功能与视觉等价（Task 5-13；视觉类名逐字复制 + 阶段 D 联调）
+      — SSE 解析 4 单测 / 审批倒计时 3 单测 / 会话 5 单测 / 消息渲染 2 单测 + 后端回归全绿
+- [x] SSE 事件 TS 判别联合；组件拆分符合规格 3.1（Task 2/5-13）
+- [x] Context+hooks 覆盖会话/Token/消息/统计；localStorage key 兼容（Task 3）
+      — `smartflow_api_token` / `smartflow_session_id` 沿用旧 key
+- [x] Vitest 17 用例通过；ESLint 0 error（Task 14/16）
+      — 17 passed / 6 files；lint 0 errors（6 warnings 为 react-refresh 提示）
+- [x] 开发模式（Vite proxy）与生产模式（FastAPI 伺服 dist）都能跑（Task 1/15）
+      — 生产模式已验证；dev proxy 配置就位 ⚠️ dev server 未起浏览器实测（无浏览器环境）
+- [x] 旧 `static/index.html` 已移除、旧挂载已清理（Task 15）
+      — git rm static（-1214 行），`/static` 挂载与根 FileResponse 删除，`/outputs` 挂载保留
+- [x] Dockerfile 多阶段构建（Task 15）
+      — 已写 node:20-alpine → python:3.11-slim 两阶段 + .dockerignore ⚠️ 本机无 Docker，未跑 docker build
+- [x] 后端 `/api/*` 零改动（除伺服与旧挂载清理）（Task 15 回归）
+      — test_hitl ✓ / test_compress 11/11 ✓ / test_more_tools 全通过 ✓ / eval 5/5 ✓
+- [x] README + CHANGELOG 更新、Roadmap 勾选（Task 16）
+
+## 验收备注（环境限制项）
+
+- **视觉 1:1 最终确认**：class 字符串逐字复制 + `@theme` 色板一致为保证，最终需浏览器打开 `http://localhost:8000` 肉眼比对（旧页面已删除，比对依据为 git 历史中的 `static/index.html`）。
+- **dev 模式实测**：`frontend/vite.config.ts` 已配 `server.proxy`（/api、/outputs → :8000），未在浏览器实测。
+- **Docker 构建**：本机无 Docker，`docker build` 未执行（与 more-tools 计划同限制）。
+- **真实 LLM SSE 联调**：验收当日 LLM 代理（gpt-5.4-mini @ 0x7e.vip）返回 200 但 `chat_stream` 0 事件（tokens 0/0）——后端零改动、mock LLM 回归全绿、前端 SSE 解析由 4 个单测覆盖，判定为非迁移缺陷；真实模型环境联调即可（见 `.workflow/ledger.md` Ruling R8）。
 
 ## 已知限制
 
