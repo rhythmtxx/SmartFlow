@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import AsyncGenerator, Dict, Any, Callable, Optional
 
@@ -9,6 +10,13 @@ from .memory import MemoryStore
 from .context import ContextBuilder
 from .loop import AgentLoop
 from .knowledge import KnowledgeBase
+
+logger = logging.getLogger(__name__)
+
+# 上下文压缩：活跃消息数超过该值触发压缩，单批压缩最早一批完整轮次
+COMPRESS_THRESHOLD = 24
+SUMMARY_MAX_CHARS = 300
+SUMMARY_ITEM_TRUNCATE = 200  # 摘要输入里单条 tool 结果截断长度
 
 
 class TinyAgent:
@@ -56,6 +64,8 @@ class TinyAgent:
         self.approval_manager = ApprovalManager()
         self.loop = AgentLoop(self.client, self.tools, model=model,
                               approval_manager=self.approval_manager)
+        # 上下文压缩防重入标志（HTTP 层已有会话锁，这里是直接调用方的第二道防线）
+        self._compressing = False
 
     @staticmethod
     def build_shared(workspace_dir: str, openai_api_key: str = None,
@@ -117,6 +127,8 @@ class TinyAgent:
                 for idx, msg in enumerate(new_msgs):
                     # User 的不重复添加，其余添加进记忆（比如 assistant 和 tool）
                     self.memory.add_message(msg)
+                # 本轮完整落库后，尝试压缩最早的完整轮次（超阈值时）
+                await self._maybe_compress()
             elif etype == "token_usage":
                 # 保存 token 到持久化记忆 + 记录本轮明细（可观测性）
                 p_tokens = event.get("prompt_tokens", 0)
@@ -139,7 +151,51 @@ class TinyAgent:
                 yield event
             else:
                 yield event
-                
+
+    async def _maybe_compress(self):
+        """
+        上下文压缩：活跃消息超过阈值时，把最早一批完整轮次交给 LLM 压缩成
+        ≤300 字摘要，先写入 summaries 表、成功后再删除原文。
+
+        失败兜底：任何异常都静默跳过（不删任何消息、不阻塞对话）。
+        """
+        if self._compressing:
+            return
+        self._compressing = True
+        try:
+            if len(self.memory.messages) <= COMPRESS_THRESHOLD:
+                return
+            candidates = self.memory.get_compress_candidates()
+            if not candidates:
+                return
+            history_text = "\n".join(
+                f"{m.get('role')}: {str(m.get('content') or '')[:SUMMARY_ITEM_TRUNCATE]}"
+                for m in candidates
+            )
+            prompt = (
+                f"请将以下对话历史压缩成不超过 {SUMMARY_MAX_CHARS} 字的摘要。必须保留：\n"
+                "1. 用户的偏好与关键要求\n"
+                "2. 已完成的重要操作与结果\n"
+                "3. 未完成或待办的事项\n"
+                "忽略寒暄与无关细节。直接输出摘要，不要其他内容。\n\n"
+                "--- 对话历史 ---\n"
+                + history_text
+            )
+            resp = await self.client.chat.completions.create(
+                model=self.loop.model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            summary = (resp.choices[0].message.content or "").strip()
+            if not summary:
+                return
+            self.memory.append_summary(summary[:SUMMARY_MAX_CHARS])
+            self.memory.delete_messages_by_ids([m["id"] for m in candidates])
+            logger.info(f"上下文压缩完成：删除 {len(candidates)} 条历史，摘要已入库")
+        except Exception as e:
+            logger.warning(f"上下文压缩失败，已跳过（不删除消息）: {e}")
+        finally:
+            self._compressing = False
+
     def get_skills_summary(self) -> list:
         """透出所有的技能清单用于前端呈现"""
         return self.skills.get_skills_summary()

@@ -99,6 +99,7 @@ class SessionManager:
                     "DELETE FROM messages WHERE session_id = ?", (session_id,)
                 )
                 conn.execute("DELETE FROM tokens WHERE session_id = ?", (session_id,))
+                conn.execute("DELETE FROM summaries WHERE session_id = ?", (session_id,))
                 return cur.rowcount > 0
         except sqlite3.Error:
             return False

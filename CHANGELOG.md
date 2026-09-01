@@ -8,6 +8,11 @@
 ## [Unreleased]
 
 ### Added
+- **上下文压缩**：超过 24 条活跃消息时，把最早一批完整轮次（≤10 条，按轮次边界截止，不切孤儿 tool）交给 LLM 压缩成 ≤300 字摘要
+  - SQLite 新增 `summaries` 表（按 `session_id` 隔离）；先写摘要、成功后再删原文，失败兜底不删任何消息、不阻塞对话
+  - 摘要注入 `build_system_prompt` 的「早前对话摘要」段，与窗口截断并行——窗口外早期上下文不再丢失
+  - `clear_history` 与 `DELETE /api/sessions/{id}` 同步清理摘要
+  - 新增测试 `test_compress.py`（单元 + 集成，mock 摘要模型）
 - **可观测性面板**：SQLite 新增 `tool_calls` / `rounds` 表，自动采集每次工具调用（名称/参数/结果摘要）与每轮 LLM token 明细
   - 新接口 `GET /api/stats?session=`：token 总量 / 轮数 / 工具调用次数 / **预估成本**（`llm.pricing` 配置，可选）+ 工具调用排行与最近时间线
   - 前端 Telemetry 面板扩展：成本估算显示 + 工具调用列表（按风险着色：exec 红 / write·edit 黄 / 只读绿）

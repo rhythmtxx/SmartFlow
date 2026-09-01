@@ -38,7 +38,12 @@ class ContextBuilder:
         if long_term_fact:
             parts.append(f"# 工作记忆和参考事实\n\n{long_term_fact}")
 
-        # 4. 附加可选技能列表清单
+        # 4. 挂载早前对话摘要（上下文压缩产物）
+        summaries = self.memory.get_summaries()
+        if summaries:
+            parts.append("# 早前对话摘要\n\n" + "\n\n".join(f"- {s}" for s in summaries))
+
+        # 5. 附加可选技能列表清单
         skills_summary = self.skills.build_skills_summary_prompt()
         if skills_summary:
             parts.append(skills_summary)
