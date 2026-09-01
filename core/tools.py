@@ -322,9 +322,55 @@ class SearchKnowledgeTool(BaseTool):
         return "\n\n".join(parts)
 
 
+class WebSearchTool(BaseTool):
+    """网页搜索工具（Tavily）。只读外部信息，风险 low。"""
+    def __init__(self, api_key: str = ""):
+        super().__init__(
+            name="web_search",
+            description="搜索互联网获取实时信息，返回标题/链接/摘要列表。当问题需要最新或外部信息时使用。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "搜索关键词或问题"},
+                    "max_results": {"type": "integer", "description": "返回结果数，默认 5", "default": 5},
+                },
+                "required": ["query"],
+            },
+            risk_level="low",
+        )
+        self.api_key = api_key
+
+    async def _fetch(self, query: str, max_results: int) -> list:
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.tavily.com/search",
+                json={"api_key": self.api_key, "query": query, "max_results": max_results},
+            )
+            resp.raise_for_status()
+            return resp.json().get("results", [])
+
+    async def execute(self, query: str, max_results: int = 5) -> str:
+        if not self.api_key:
+            return "web_search 未配置 API Key（Tavily）。请在 config.yaml 的 tools.web_search.api_key 或环境变量 WEB_SEARCH_API_KEY 配置。"
+        try:
+            results = await self._fetch(query, max_results)
+        except Exception as e:
+            return f"web_search 检索失败: {e}"
+        if not results:
+            return "未搜索到结果。"
+        parts = [f"搜索到 {len(results)} 条结果："]
+        for i, r in enumerate(results[:max_results], 1):
+            title = str(r.get("title", ""))[:100]
+            url = str(r.get("url", ""))
+            content = str(r.get("content", ""))[:200]
+            parts.append(f"{i}. **{title}**\n   {url}\n   {content}")
+        return "\n\n".join(parts)[:2000]
+
+
 class ToolRegistry:
     """工具注册中心，负责管理和执行所有工具"""
-    def __init__(self, knowledge_base=None):
+    def __init__(self, knowledge_base=None, tool_config=None, workspace_dir: str = "."):
         self.tools: Dict[str, BaseTool] = {}
         # 默认注册基础的文件操作工具
         self.register(ReadFileTool())
@@ -335,6 +381,11 @@ class ToolRegistry:
         # 注册 RAG 知识库检索工具（需要传入 KnowledgeBase 实例）
         if knowledge_base is not None:
             self.register(SearchKnowledgeTool(knowledge_base))
+        # 注册更多工具（配置驱动）
+        tc = tool_config or {}
+        ws = tc.get("web_search") or {}
+        if ws.get("api_key"):
+            self.register(WebSearchTool(api_key=ws["api_key"]))
 
     def register(self, tool: BaseTool):
         """注册一个新工具"""

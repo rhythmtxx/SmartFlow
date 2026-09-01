@@ -6,7 +6,7 @@ import asyncio
 import socket
 from unittest.mock import patch
 
-from core.tools import _check_ssrf
+from core.tools import _check_ssrf, ToolRegistry, WebSearchTool
 
 
 def fake_getaddrinfo(host, port):
@@ -40,12 +40,45 @@ def test_ssrf_allowed():
         assert _check_ssrf("https://api.github.com/") is None
 
 
+# ---- web_search ----
+
+def test_web_search_no_key():
+    tool = WebSearchTool(api_key="")
+    result = asyncio.run(tool.execute(query="今天天气"))
+    assert "未配置" in result and "Tavily" in result, result
+
+
+def test_web_search_formats_results():
+    tool = WebSearchTool(api_key="test-key")
+
+    async def _run():
+        async def fake_fetch(query, max_results):
+            return [{"title": "AI 新闻", "url": "https://example.com/a", "content": "摘要内容" * 30}]
+        tool._fetch = fake_fetch
+        return await tool.execute(query="AI 新闻", max_results=1)
+
+    result = asyncio.run(_run())
+    assert "AI 新闻" in result and "https://example.com/a" in result
+    assert len(result) <= 2000
+
+
+def test_web_search_registered_with_config():
+    reg = ToolRegistry(tool_config={"web_search": {"api_key": "k"}})
+    assert "web_search" in reg.tools
+
+
 def main():
     test_ssrf_blocked()
     print("✓ SSRF 拦截用例通过")
     test_ssrf_allowed()
     print("✓ SSRF 放行用例通过")
-    print("SSRF 防护测试: 全部通过")
+    test_web_search_no_key()
+    print("✓ web_search 无 Key 提示通过")
+    test_web_search_formats_results()
+    print("✓ web_search 格式化输出通过")
+    test_web_search_registered_with_config()
+    print("✓ web_search 配置注册通过")
+    print("更多工具测试: 全部通过")
 
 
 if __name__ == "__main__":
