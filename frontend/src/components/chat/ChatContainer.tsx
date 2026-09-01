@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useChat } from "../../store";
+import { useHistory } from "../../hooks/useHistory";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 
@@ -9,6 +10,7 @@ const BOOT_CONTENT =
 export default function ChatContainer() {
   const { messages, isGenerating } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
+  useHistory(); // 挂载/切会话时恢复历史消息与 token
 
   useEffect(() => {
     const el = scrollRef.current;

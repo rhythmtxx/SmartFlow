@@ -23,6 +23,7 @@ interface ChatState {
   isGenerating: boolean;
   pendingApproval: ApprovalRequired | null;
   appendMessage: (m: Omit<UIMessage, "id">) => void;
+  setMessages: (msgs: Omit<UIMessage, "id">[]) => void;
   updateToolCall: (id: string, patch: Partial<ToolCallUI>) => void;
   addTokens: (t: { prompt: number; completion: number }) => void;
   setTokens: (t: { prompt: number; completion: number }) => void;
@@ -36,17 +37,22 @@ let seq = 0;
 const uid = () => `m${++seq}-${Date.now()}`;
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [messages, setMessages] = useState<UIMessage[]>([]);
+  const [messages, setMessagesState] = useState<UIMessage[]>([]);
   const [cumulativeTokens, setTokensState] = useState({ prompt: 0, completion: 0 });
   const [isGenerating, setGenerating] = useState(false);
   const [pendingApproval, setPending] = useState<ApprovalRequired | null>(null);
 
   const appendMessage: ChatState["appendMessage"] = useCallback((m) => {
-    setMessages((prev) => [...prev, { ...m, id: uid() }]);
+    setMessagesState((prev) => [...prev, { ...m, id: uid() }]);
   }, []);
 
+  const setMessages: ChatState["setMessages"] = useCallback(
+    (msgs) => setMessagesState(msgs.map((m) => ({ ...m, id: uid() }))),
+    []
+  );
+
   const updateToolCall: ChatState["updateToolCall"] = useCallback((id, patch) => {
-    setMessages((prev) =>
+    setMessagesState((prev) =>
       prev.map((m) =>
         m.toolCalls
           ? { ...m, toolCalls: m.toolCalls.map((tc) => (tc.id === id ? { ...tc, ...patch } : tc)) }
@@ -64,7 +70,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const setTokens: ChatState["setTokens"] = useCallback((t) => setTokensState(t), []);
   const resetTokens: ChatState["resetTokens"] = useCallback(() => setTokensState({ prompt: 0, completion: 0 }), []);
-  const clearMessages: ChatState["clearMessages"] = useCallback(() => setMessages([]), []);
+  const clearMessages: ChatState["clearMessages"] = useCallback(() => setMessagesState([]), []);
 
   return (
     <Ctx.Provider
@@ -74,6 +80,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         isGenerating,
         pendingApproval,
         appendMessage,
+        setMessages,
         updateToolCall,
         addTokens,
         setTokens,
