@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { usePolling } from "../../hooks/usePolling";
 import { useSession } from "../../store";
@@ -9,10 +9,19 @@ export default function MemoryPanel() {
   const { currentSession } = useSession();
   const [memory, setMemory] = useState<string>("");
 
+  // I1 修复：会话切换时 usePolling 重启轮询，旧会话 in-flight 请求不会取消；
+  // 用 ref 持有最新会话，响应到达后校验请求发起时的会话未变才落盘，变了就丢弃。
+  const sessionRef = useRef(currentSession);
+  useEffect(() => {
+    sessionRef.current = currentSession;
+  }, [currentSession]);
+
   usePolling(async () => {
-    const res = await apiFetch(`/api/memory?session=${encodeURIComponent(currentSession)}`);
+    const session = sessionRef.current;
+    const res = await apiFetch(`/api/memory?session=${encodeURIComponent(session)}`);
     if (!res.ok) return;
     const data = (await res.json()) as MemoryResponse;
+    if (sessionRef.current !== session) return; // 会话已切换，丢弃过期响应
     setMemory(data.long_term_memory);
   }, 10000, [currentSession]);
 
