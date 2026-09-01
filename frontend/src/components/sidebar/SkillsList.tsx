@@ -6,7 +6,12 @@ export default function SkillsList() {
   return (
     <div className="p-6 border-b border-cyber-border flex-1 overflow-y-auto min-h-[150px]">
       <h2 className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
-        <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg
+          className="w-3 h-3 mr-2 text-zinc-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"

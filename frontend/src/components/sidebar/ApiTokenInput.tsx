@@ -48,7 +48,13 @@ export default function ApiTokenInput() {
           ? "Token accepted — auth active."
           : "ERROR: 401 Unauthorized — 请检查 Token 是否正确。";
   const color =
-    status === "error" ? "text-red-500" : status === "ok" ? "text-cyber-green" : status === "verifying" ? "text-cyber-blue" : "text-zinc-600";
+    status === "error"
+      ? "text-red-500"
+      : status === "ok"
+        ? "text-cyber-green"
+        : status === "verifying"
+          ? "text-cyber-blue"
+          : "text-zinc-600";
 
   return (
     <div className="mt-6">
@@ -56,7 +62,12 @@ export default function ApiTokenInput() {
         htmlFor="api-token-input"
         className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-2 flex items-center"
       >
-        <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg
+          className="w-3 h-3 mr-2 text-zinc-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"

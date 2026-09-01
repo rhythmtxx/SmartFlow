@@ -19,8 +19,7 @@ export default function TelemetryPanel() {
 
   const totals = stats?.totals;
   const recent = stats?.recent_tool_calls ?? [];
-  const cost =
-    totals?.estimated_cost != null ? `¥${totals.estimated_cost.toFixed(4)}` : "¥--";
+  const cost = totals?.estimated_cost != null ? `¥${totals.estimated_cost.toFixed(4)}` : "¥--";
 
   const purge = async () => {
     await apiFetch(`/api/clear?session=${encodeURIComponent(currentSession)}`, {
@@ -34,7 +33,12 @@ export default function TelemetryPanel() {
   return (
     <div className="p-6 border-b border-cyber-border">
       <h2 className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
-        <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg
+          className="w-3 h-3 mr-2 text-zinc-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -75,7 +79,12 @@ export default function TelemetryPanel() {
       <div className="mt-5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 flex items-center">
-            <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg
+              className="w-3 h-3 mr-2 text-zinc-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -90,7 +99,10 @@ export default function TelemetryPanel() {
               />
             </svg>
             Tool Calls
-            <span id="tool-calls-count" className="ml-2 text-cyber-blue normal-case tracking-normal">
+            <span
+              id="tool-calls-count"
+              className="ml-2 text-cyber-blue normal-case tracking-normal"
+            >
               {totals?.tool_calls ?? 0}
             </span>
           </h3>

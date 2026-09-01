@@ -4,10 +4,7 @@ import { useChat, useSession } from "../store";
 import type { ChatEvent } from "../api/types";
 
 /** 纯函数：把 chunk 追加到 buffer，切出完整 SSE 事件，保留未闭合尾部。 */
-export function feedStream(
-  buffer: string,
-  chunk: string
-): { events: ChatEvent[]; buffer: string } {
+export function feedStream(buffer: string, chunk: string): { events: ChatEvent[]; buffer: string } {
   const buf = buffer + chunk;
   const parts = buf.split("\n\n");
   const rest = parts.pop() ?? "";
@@ -97,7 +94,10 @@ export function useChatStream() {
         for (;;) {
           const { value, done } = await reader.read();
           if (done) break;
-          const { events, buffer: rest } = feedStream(buffer, decoder.decode(value, { stream: true }));
+          const { events, buffer: rest } = feedStream(
+            buffer,
+            decoder.decode(value, { stream: true })
+          );
           buffer = rest;
           events.forEach(handleEvent);
         }

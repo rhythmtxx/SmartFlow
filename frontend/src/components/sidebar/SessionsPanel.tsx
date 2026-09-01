@@ -23,7 +23,12 @@ export default function SessionsPanel() {
     <div className="p-6 border-b border-cyber-border">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 flex items-center">
-          <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg
+            className="w-3 h-3 mr-2 text-zinc-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -70,7 +75,9 @@ export default function SessionsPanel() {
                   <span className="font-mono text-[11px] truncate">{label}</span>
                 </span>
                 <span className="flex items-center flex-shrink-0 ml-2">
-                  <span className="text-[9px] font-mono text-zinc-600 mr-1.5">{s.message_count || 0}</span>
+                  <span className="text-[9px] font-mono text-zinc-600 mr-1.5">
+                    {s.message_count || 0}
+                  </span>
                   {s.session_id !== "default" && (
                     <button
                       onClick={(e) => {
@@ -80,7 +87,12 @@ export default function SessionsPanel() {
                       className="opacity-0 group-hover:opacity-100 text-zinc-500 hover:text-red-500 transition-opacity focus:outline-none cursor-pointer"
                       title="删除会话"
                     >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"

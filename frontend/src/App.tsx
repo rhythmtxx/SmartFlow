@@ -33,13 +33,17 @@ export default function App() {
           {/* Header */}
           <div className="p-6 border-b border-cyber-border relative">
             <div className="flex items-center justify-between mb-1">
-              <h1 className="text-2xl font-semibold tracking-wide text-white font-mono">SmartFlow</h1>
+              <h1 className="text-2xl font-semibold tracking-wide text-white font-mono">
+                SmartFlow
+              </h1>
               <span className="flex h-3 w-3 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyber-green opacity-75" />
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-cyber-green shadow-[0_0_8px_#00ffa3]" />
               </span>
             </div>
-            <p className="text-xs text-zinc-500 font-mono tracking-widest uppercase">System.Online // v1.1.0</p>
+            <p className="text-xs text-zinc-500 font-mono tracking-widest uppercase">
+              System.Online // v1.1.0
+            </p>
           </div>
 
           <SessionsPanel />

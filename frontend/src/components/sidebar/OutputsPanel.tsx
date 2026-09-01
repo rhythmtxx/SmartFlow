@@ -124,7 +124,9 @@ export default function OutputsPanel() {
       return;
     }
     try {
-      const res = await apiFetch(`/api/outputs/${encodeURIComponent(filename)}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/outputs/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+      });
       const data = (await res.json()) as { status?: string; message?: string };
       if (data.status === "success") {
         void fetchOutputs();
@@ -143,7 +145,12 @@ export default function OutputsPanel() {
     <div className="p-6 border-cyber-border flex-1 overflow-y-auto min-h-[50%] bg-zinc-900/30">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 flex items-center relative">
-          <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg
+            className="w-3 h-3 mr-2 text-zinc-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -196,7 +203,9 @@ export default function OutputsPanel() {
                 >
                   {f.name}
                 </a>
-                <span className="text-[10px] text-zinc-600 font-mono tracking-wider mt-0.5">{formatBytes(f.size)}</span>
+                <span className="text-[10px] text-zinc-600 font-mono tracking-wider mt-0.5">
+                  {formatBytes(f.size)}
+                </span>
               </div>
               <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <a
@@ -208,7 +217,12 @@ export default function OutputsPanel() {
                   className="text-zinc-500 hover:text-cyber-blue transition-colors flex-shrink-0"
                   title={isPptx(f.name) ? "Download" : "Open"}
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -227,7 +241,12 @@ export default function OutputsPanel() {
                   className="text-zinc-500 hover:text-red-500 transition-colors flex-shrink-0 focus:outline-none cursor-pointer"
                   title="Delete"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"

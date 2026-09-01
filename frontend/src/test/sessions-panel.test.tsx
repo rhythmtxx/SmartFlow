@@ -52,9 +52,9 @@ describe("SessionsPanel", () => {
     );
     fireEvent.click(screen.getByTitle("新建会话"));
     await waitFor(() =>
-      expect(
-        mock.mock.calls.some(([u, i]) => u === "/api/sessions" && i?.method === "POST")
-      ).toBe(true)
+      expect(mock.mock.calls.some(([u, i]) => u === "/api/sessions" && i?.method === "POST")).toBe(
+        true
+      )
     );
   });
 });

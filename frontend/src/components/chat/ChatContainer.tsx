@@ -35,7 +35,11 @@ export default function ChatContainer() {
       </div>
 
       {/* Chat Stream Workspace */}
-      <div id="chat-container" ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-8 pb-32">
+      <div
+        id="chat-container"
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-8 space-y-8 pb-32"
+      >
         {/* System Boot Message（旧 HTML 静态块） */}
         <div className="flex animate-slide-up">
           <div className="max-w-3xl chat-bubble-ai px-6 py-5 rounded-r-lg rounded-bl-lg shadow-sm text-zinc-300 font-mono text-sm leading-relaxed">

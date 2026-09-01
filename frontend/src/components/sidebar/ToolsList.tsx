@@ -6,7 +6,12 @@ export default function ToolsList() {
   return (
     <div className="p-6 bg-zinc-900/30">
       <h2 className="text-[10px] uppercase font-bold tracking-widest text-zinc-500 mb-4 flex items-center">
-        <svg className="w-3 h-3 mr-2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg
+          className="w-3 h-3 mr-2 text-zinc-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -32,7 +37,9 @@ export default function ToolsList() {
               className="flex items-baseline space-x-2 border-l-2 border-zinc-800 pl-2 opacity-80 hover:opacity-100 transition-opacity"
             >
               <span className="text-[11px] font-mono text-cyber-blue">{tool.name}()</span>
-              <span className="text-[10px] text-zinc-500 line-clamp-2 leading-relaxed">{tool.description}</span>
+              <span className="text-[10px] text-zinc-500 line-clamp-2 leading-relaxed">
+                {tool.description}
+              </span>
             </li>
           ))
         )}

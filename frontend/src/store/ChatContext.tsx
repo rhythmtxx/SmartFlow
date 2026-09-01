@@ -69,7 +69,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setTokens: ChatState["setTokens"] = useCallback((t) => setTokensState(t), []);
-  const resetTokens: ChatState["resetTokens"] = useCallback(() => setTokensState({ prompt: 0, completion: 0 }), []);
+  const resetTokens: ChatState["resetTokens"] = useCallback(
+    () => setTokensState({ prompt: 0, completion: 0 }),
+    []
+  );
   const clearMessages: ChatState["clearMessages"] = useCallback(() => setMessagesState([]), []);
 
   return (

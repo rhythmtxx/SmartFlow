@@ -10,13 +10,17 @@ export function useStatus() {
   const [skills, setSkills] = useState<StatusResponse["skills"]>([]);
   const [tools, setTools] = useState<StatusResponse["tools"]>([]);
 
-  usePolling(async () => {
-    const res = await apiFetch("/api/status");
-    if (!res.ok) return;
-    const data = (await res.json()) as StatusResponse;
-    setSkills(data.skills);
-    setTools(data.tools);
-  }, 10000, []);
+  usePolling(
+    async () => {
+      const res = await apiFetch("/api/status");
+      if (!res.ok) return;
+      const data = (await res.json()) as StatusResponse;
+      setSkills(data.skills);
+      setTools(data.tools);
+    },
+    10000,
+    []
+  );
 
   return { skills, tools };
 }
