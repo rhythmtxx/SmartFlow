@@ -415,6 +415,32 @@ class HttpGetTool(BaseTool):
             return f"HTTP 请求失败: {e}"
 
 
+class HttpPostTool(HttpGetTool):
+    """HTTP POST 工具（高风险：对外部资源有副作用，执行前 HITL 审批）。"""
+    def __init__(self, timeout: float = 15):
+        super().__init__(timeout)
+        self.name = "http_post"
+        self.description = "向外部 URL 提交 JSON/表单数据（如调用第三方接口、发 webhook）。有副作用，执行前需确认。"
+        self.parameters = {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "要请求的 http/https URL"},
+                "data": {"type": "object", "description": "要提交的 JSON 数据（或表单字段）", "default": {}},
+                "headers": {"type": "object", "description": "可选请求头", "default": {}},
+                "timeout": {"type": "number", "description": "超时秒数，默认 15", "default": 15},
+            },
+            "required": ["url"],
+        }
+        self.risk_level = "high"
+
+    async def execute(self, url: str, data: dict = None, headers: dict = None, timeout: float = 15) -> str:
+        self.timeout = timeout or self.timeout
+        try:
+            return await self._request("POST", url, headers or {}, json_body=data or {})
+        except Exception as e:
+            return f"HTTP 请求失败: {e}"
+
+
 class ToolRegistry:
     """工具注册中心，负责管理和执行所有工具"""
     def __init__(self, knowledge_base=None, tool_config=None, workspace_dir: str = "."):
@@ -430,6 +456,7 @@ class ToolRegistry:
             self.register(SearchKnowledgeTool(knowledge_base))
         # 注册更多工具（配置驱动）
         self.register(HttpGetTool())
+        self.register(HttpPostTool())
         tc = tool_config or {}
         ws = tc.get("web_search") or {}
         if ws.get("api_key"):

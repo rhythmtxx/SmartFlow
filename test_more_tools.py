@@ -7,7 +7,10 @@ import socket
 import httpx
 from unittest.mock import patch
 
-from core.tools import _check_ssrf, ToolRegistry, WebSearchTool, HttpGetTool
+from core.tools import (_check_ssrf, ToolRegistry, WebSearchTool, HttpGetTool,
+                        HttpPostTool, ApprovalManager)
+from core.loop import AgentLoop
+from eval.fakes import ScriptedClient
 
 
 def fake_getaddrinfo(host, port):
@@ -115,6 +118,42 @@ def test_http_get_timeout():
     asyncio.run(_run())
 
 
+# ---- http_post（high，走 HITL）----
+
+def test_http_post_ssrf_and_body():
+    async def _run():
+        tool = HttpPostTool()
+        r = await tool.execute(url="http://192.168.1.1/", data={"a": 1})
+        assert "SSRF" in r, r
+        with patch.object(httpx, "AsyncClient", return_value=httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda req: httpx.Response(201, text=req.content.decode())))):
+            ok = await tool.execute(url="https://example.com/hook", data={"a": 1})
+        assert "201" in ok and '"a":1' in ok, ok
+    asyncio.run(_run())
+
+
+def test_high_risk_http_post_triggers_approval():
+    async def _run():
+        client = ScriptedClient([{"tool": "http_post", "arguments": {"url": "https://example.com/x"}}])
+        mgr = ApprovalManager()
+        reg = ToolRegistry()
+        reg.register(HttpPostTool())
+        loop = AgentLoop(client, reg, approval_manager=mgr, approval_timeout=10)
+        events = []
+
+        async def consume():
+            async for e in loop.run([{"role": "user", "content": "go"}]):
+                events.append(e["type"])
+                if e["type"] == "approval_required":
+                    mgr.resolve(e["approval_id"], True)
+
+        await consume()
+        assert "approval_required" in events, events
+        assert "approval_resolved" in events
+        assert "tool_call_end" in events
+    asyncio.run(_run())
+
+
 def main():
     test_ssrf_blocked()
     print("✓ SSRF 拦截用例通过")
@@ -134,6 +173,10 @@ def main():
     print("✓ http_get 重定向 SSRF 拦截通过")
     test_http_get_timeout()
     print("✓ http_get 超时错误处理通过")
+    test_http_post_ssrf_and_body()
+    print("✓ http_post SSRF 拦截与 body 提交通过")
+    test_high_risk_http_post_triggers_approval()
+    print("✓ http_post 高风险 HITL 审批链路通过")
     print("更多工具测试: 全部通过")
 
 
