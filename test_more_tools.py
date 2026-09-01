@@ -8,7 +8,7 @@ import httpx
 from unittest.mock import patch
 
 from core.tools import (_check_ssrf, ToolRegistry, WebSearchTool, HttpGetTool,
-                        HttpPostTool, ApprovalManager)
+                        HttpPostTool, ApprovalManager, CodeExecTool)
 from core.loop import AgentLoop
 from eval.fakes import ScriptedClient
 
@@ -154,6 +154,43 @@ def test_high_risk_http_post_triggers_approval():
     asyncio.run(_run())
 
 
+# ---- code_exec（high，Docker 沙箱）----
+
+def test_code_exec_no_docker():
+    # 本机无 Docker：验证降级提示而非执行（有 Docker 的机器可手动验证真执行）
+    tool = CodeExecTool(enabled=True, docker_image="python:3.11-slim", workspace_dir=".")
+    result = asyncio.run(tool.execute(code="print(1+1)", timeout=5))
+    assert "Docker" in result and "需要" in result, result
+
+
+def test_code_exec_disabled():
+    tool = CodeExecTool(enabled=False, workspace_dir=".")
+    result = asyncio.run(tool.execute(code="print(1)"))
+    assert "已禁用" in result, result
+
+
+def test_high_risk_code_exec_triggers_approval():
+    async def _run():
+        client = ScriptedClient([{"tool": "code_exec", "arguments": {"code": "print(1)"}}])
+        mgr = ApprovalManager()
+        reg = ToolRegistry()
+        reg.register(CodeExecTool(enabled=False, workspace_dir="."))
+        loop = AgentLoop(client, reg, approval_manager=mgr, approval_timeout=10)
+        events = []
+
+        async def consume():
+            async for e in loop.run([{"role": "user", "content": "go"}]):
+                events.append(e["type"])
+                if e["type"] == "approval_required":
+                    mgr.resolve(e["approval_id"], True)
+
+        await consume()
+        assert "approval_required" in events, events
+        assert "approval_resolved" in events
+        assert "tool_call_end" in events
+    asyncio.run(_run())
+
+
 def main():
     test_ssrf_blocked()
     print("✓ SSRF 拦截用例通过")
@@ -177,6 +214,12 @@ def main():
     print("✓ http_post SSRF 拦截与 body 提交通过")
     test_high_risk_http_post_triggers_approval()
     print("✓ http_post 高风险 HITL 审批链路通过")
+    test_code_exec_no_docker()
+    print("✓ code_exec 无 Docker 降级提示通过")
+    test_code_exec_disabled()
+    print("✓ code_exec 禁用提示通过")
+    test_high_risk_code_exec_triggers_approval()
+    print("✓ code_exec 高风险 HITL 审批链路通过")
     print("更多工具测试: 全部通过")
 
 

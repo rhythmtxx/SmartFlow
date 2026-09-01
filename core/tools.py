@@ -441,6 +441,57 @@ class HttpPostTool(HttpGetTool):
             return f"HTTP 请求失败: {e}"
 
 
+class CodeExecTool(BaseTool):
+    """隔离沙箱执行 Python 代码（Docker）。网络隔离 + 资源限制 + 无持久化。"""
+    def __init__(self, enabled: bool = True, docker_image: str = "python:3.11-slim",
+                 workspace_dir: str = "."):
+        super().__init__(
+            name="code_exec",
+            description="在隔离 Docker 沙箱中执行 Python 代码并返回 stdout/stderr。沙箱无网络、受限内存/CPU、无持久化，只能读写 outputs 目录。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "要执行的 Python 代码"},
+                    "timeout": {"type": "number", "description": "超时秒数，默认 30", "default": 30},
+                },
+                "required": ["code"],
+            },
+            risk_level="high",
+        )
+        self.enabled = enabled
+        self.docker_image = docker_image
+        self.workspace_dir = workspace_dir
+
+    async def execute(self, code: str, timeout: int = 30) -> str:
+        import subprocess
+        import asyncio as _asyncio
+        if not self.enabled:
+            return "code_exec 已禁用（config.yaml tools.code_exec.enabled=false）"
+        outputs = os.path.join(self.workspace_dir, "outputs")
+        cmd = [
+            "docker", "run", "--rm", "-i", "--network=none",
+            "--memory=256m", "--cpus=1", "--pids-limit=128",
+            "-v", f"{os.path.abspath(outputs)}:/sandbox",
+            self.docker_image, "python", "-c", code,
+        ]
+
+        def _run():
+            return subprocess.run(cmd, capture_output=True, text=True,
+                                  encoding="utf-8", errors="replace", timeout=timeout)
+
+        try:
+            result = await _asyncio.to_thread(_run)
+        except subprocess.TimeoutExpired:
+            return f"错误：代码执行超时（超过 {timeout} 秒）"
+        except FileNotFoundError:
+            return "code_exec 需要 Docker 环境（未检测到 docker 命令）。请安装 Docker 或设置 tools.code_exec.enabled=false 禁用。"
+        out = (result.stdout or "") + (f"\nSTDERR:\n{result.stderr}" if result.stderr.strip() else "")
+        out = out.strip() or "(无输出)"
+        if result.returncode != 0:
+            out += f"\n退出状态码: {result.returncode}"
+        return out[:20 * 1024]
+
+
 class ToolRegistry:
     """工具注册中心，负责管理和执行所有工具"""
     def __init__(self, knowledge_base=None, tool_config=None, workspace_dir: str = "."):
@@ -461,6 +512,12 @@ class ToolRegistry:
         ws = tc.get("web_search") or {}
         if ws.get("api_key"):
             self.register(WebSearchTool(api_key=ws["api_key"]))
+        ce = tc.get("code_exec") or {}
+        if ce.get("enabled", True):
+            self.register(CodeExecTool(enabled=True, docker_image=ce.get("docker_image", "python:3.11-slim"),
+                                       workspace_dir=workspace_dir))
+        else:
+            self.register(CodeExecTool(enabled=False, workspace_dir=workspace_dir))
 
     def register(self, tool: BaseTool):
         """注册一个新工具"""
