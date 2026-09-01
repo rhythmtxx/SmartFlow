@@ -8,6 +8,12 @@
 ## [Unreleased]
 
 ### Added
+- **前端工程化**：单文件 `static/index.html` 迁移为 `frontend/` React 19 + Vite + TypeScript 工程（组件化、类型化、可测试、可维护；功能与视觉 1:1 等价，后端 `/api/*` 零改动）
+  - 12 个核心交互区全部迁移：SSE 流式聊天（判别联合事件类型 + 增量解析）、HITL 审批弹窗（60s 倒计时）、会话管理（新建/切换/删除 + localStorage 兼容 `smartflow_session_id`）、API Token（兼容 `smartflow_api_token`）、Token/成本/工具调用遥测、技能/工具/记忆/输出文件面板（轮询频率与旧版一致）
+  - 技术栈：Tailwind v4 本地构建（`@theme` 迁移 cyber 色板与动画，视觉零漂移）、react-markdown（替换 CDN marked）、@fontsource 本地字体（离线可用）、React Context + hooks 状态管理（弃 Zustand）
+  - 测试与质量：Vitest 17 用例（SSE 解析/鉴权头/审批倒计时/会话 store/消息渲染）、ESLint 0 error、Prettier
+  - 伺服：`app.py` 检测到 `frontend/dist` 即挂载 `/`（位于所有 API 路由之后，Starlette 顺序匹配）；开发模式 `npm run dev` + Vite proxy；Dockerfile 多阶段构建（node 构建 → python 伺服）
+  - 旧 `static/` 与旧挂载已移除
 - **更多工具**：Agent 新增 4 个工具，扩展外部世界访问能力
   - `web_search`（low）：Tavily 联网检索，返回标题/链接/摘要列表；Key 走 `tools.web_search.api_key` 或环境变量 `WEB_SEARCH_API_KEY`（不落日志、不进 tool 参数）；未配置 Key 时工具返回明确提示
   - `http_get`（medium）：只读 HTTP GET，响应体截断 20KB；**SSRF 防护强制**（解析后校验 IP，拦截回环/私网/链路本地/保留地址，含 IPv6），`follow_redirects=False` + 手动重定向重新校验

@@ -184,7 +184,7 @@ python eval/run_eval.py --task shell_echo  # 只跑指定任务
 | 对话存储 | SQLite（会话隔离 + token 统计） |
 | 向量检索 | ChromaDB + sentence-transformers（本地 Embedding，中英文） |
 | 长期记忆 | Markdown 文件（MEMORY.md） |
-| 前端 | 单文件 HTML + Tailwind CSS + marked.js（无构建步骤） |
+| 前端 | React 19 + Vite + TypeScript + Tailwind v4（`frontend/`，构建产物由 FastAPI 伺服） |
 | 测试 | test_hitl.py / test_rag.py + 评估集 run_eval.py |
 | 部署 | Docker / docker-compose |
 
@@ -228,6 +228,24 @@ APP_RELOAD=true python app.py   # 开发模式（代码修改后自动重启）
 访问 `http://localhost:8000` 开始对话。
 
 试着发送：**"帮我执行 echo hello world"**，体验 HITL 审批弹窗。
+
+> **前端构建说明**：页面由 `frontend/`（React + Vite）构建，产物 `frontend/dist` 由 FastAPI 在启动时自动伺服（`app.py` 检测到 `frontend/dist` 即挂载）。前端改动需先构建：
+>
+> ```bash
+> cd frontend
+> npm install        # 首次
+> npm run build      # 产物进 frontend/dist，刷新页面即生效
+> ```
+>
+> 前端开发模式（Vite dev server + 代理到后端，热更新）：
+>
+> ```bash
+> cd frontend
+> npm run dev        # http://localhost:5173，/api 与 /outputs 代理到 :8000
+> ```
+>
+> 测试与质量：`npm test`（Vitest，17 用例）、`npm run lint`（ESLint）、`npm run format`（Prettier）。
+> 本机若在受限沙箱运行（npm 缓存需重定向 + vite 无法 spawn 子进程），参见 `frontend/vite-netuse-preload.cjs` 注释。
 
 ## 🐳 Docker 部署
 
@@ -313,7 +331,7 @@ SmartFlow/
 ├── test_rag.py         # RAG 知识库功能测试
 ├── eval/               # 评估集：run_eval.py + tasks/*.json（mock/real 双模式）
 ├── 面试复习手册.md      # 代码讲解 + 面试题精讲
-├── static/             # 前端页面
+├── frontend/            # 前端工程（React + Vite + TS；npm run build 产物进 frontend/dist）
 └── core/               # 核心模块
     ├── agent.py        #   总指挥，组装所有组件（支持共享组件注入）
     ├── session.py      #   会话管理器：多会话隔离 + 审批路由 + 并发锁
@@ -378,7 +396,7 @@ python test_hitl.py
 - [x] **可观测性面板** — 已实现：token 明细 + 成本估算 + 工具调用时间线 ✅
 - [x] **上下文压缩** — 已实现：超窗口历史用 LLM 摘要注入 system prompt ✅
 - [x] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
-- [ ] **前端工程化** — 迁移到 React/Vite，组件化 + 测试
+- [x] **前端工程化** — 迁移到 React/Vite，组件化 + 测试（2026-09-01）
 
 ---
 
