@@ -1,4 +1,14 @@
-# 基础镜像：Python 3.11 slim（体积小，够用）
+# 多阶段构建：阶段 1 构建前端 dist，阶段 2 Python 后端伺服
+
+# 阶段 1: 构建前端（Vite 产物）
+FROM node:20-alpine AS frontend
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# 阶段 2: Python 后端
 FROM python:3.11-slim
 
 # 设置工作目录
@@ -14,6 +24,9 @@ RUN pip install --no-cache-dir -r requirements.txt \
 
 # 复制项目代码
 COPY . .
+
+# 复制前端构建产物（app.py 在 frontend/dist 存在时自动挂载伺服）
+COPY --from=frontend /app/frontend/dist ./frontend/dist
 
 # 创建运行时需要的目录
 RUN mkdir -p workspace/memory workspace/outputs workspace/skills

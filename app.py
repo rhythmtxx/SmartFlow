@@ -91,13 +91,8 @@ async def auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 # 挂载静态资源
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# 注意：/outputs 静态挂载保留（仍受鉴权中间件保护；开启鉴权后文件打开必须走 /api/outputs/download）
 app.mount("/outputs", StaticFiles(directory=outputs_path), name="outputs")
-
-@app.get("/")
-async def root():
-    """返回前端主页"""
-    return FileResponse("static/index.html")
 
 class ChatRequest(BaseModel):
     message: str
@@ -338,6 +333,13 @@ async def clear_knowledge():
     """清空知识库"""
     manager.shared_components()["knowledge"].clear()
     return {"status": "ok", "message": "知识库已清空"}
+
+# ------------------------------------------------------------------ #
+# 前端伺服（生产模式）：伺服 Vite 构建产物（需先 npm run build）          #
+# 必须放在所有 /api/* 路由与 /outputs 挂载之后注册（Starlette 按注册顺序匹配） #
+# ------------------------------------------------------------------ #
+if os.path.exists("frontend/dist"):
+    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

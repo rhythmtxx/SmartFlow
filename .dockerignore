@@ -1,0 +1,22 @@
+# Git
+.git
+.workflow
+
+# 密钥与本地配置（禁止进镜像）
+.env
+config.yaml
+
+# Python
+__pycache__/
+*.pyc
+workspace/
+_test_*/
+
+# 前端（dist 由多阶段构建阶段产出，node_modules 不打包）
+frontend/node_modules
+frontend/dist
+.npm-cache
+
+# 个人文件
+*.docx
+*.pdf
