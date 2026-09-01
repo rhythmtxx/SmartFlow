@@ -41,7 +41,6 @@
 - **Docker 生产环境误开热重载**：`uvicorn reload` 改为 `APP_RELOAD` 环境变量控制，默认关闭（开发模式 `APP_RELOAD=true python app.py`）
 
 ### Changed
-- 品牌命名统一：前端标题、FastAPI 标题、启动日志、Agent 系统提示中的 "Tiny Agent / tinybot" 统一为 **SmartFlow**
 - 恢复并更新配置模板 `config.yaml.example` / `.env.example`，与新增配置项（鉴权、开发模式）保持一致
 - `docker-compose.yml` 增加 `SMARTFLOW_API_TOKEN` 环境变量透传
 
