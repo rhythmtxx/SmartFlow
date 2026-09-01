@@ -368,6 +368,53 @@ class WebSearchTool(BaseTool):
         return "\n\n".join(parts)[:2000]
 
 
+MAX_BODY = 20 * 1024  # 响应体截断 20KB
+
+class HttpGetTool(BaseTool):
+    """只读 HTTP GET 工具。SSRF 防护强制实施，follow_redirects=False + 手动重定向校验。"""
+    def __init__(self, timeout: float = 15):
+        super().__init__(
+            name="http_get",
+            description="发起只读 HTTP GET 请求，返回状态码与响应体（截断 20KB）。内网/回环地址会被 SSRF 防护拦截。",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "要请求的 http/https URL"},
+                    "headers": {"type": "object", "description": "可选请求头", "default": {}},
+                    "timeout": {"type": "number", "description": "超时秒数，默认 15", "default": 15},
+                },
+                "required": ["url"],
+            },
+            risk_level="medium",
+        )
+        self.timeout = timeout
+
+    async def _request(self, method: str, url: str, headers: dict, json_body=None, data_body=None):
+        import httpx
+        blocked = _check_ssrf(url)
+        if blocked:
+            return f"请求被拦截: {blocked}"
+        async with httpx.AsyncClient(follow_redirects=False, timeout=self.timeout) as client:
+            resp = await client.request(method, url, headers=headers, json=json_body, content=data_body)
+            if resp.is_redirect and resp.headers.get("location"):
+                new_url = str(resp.headers["location"])
+                blocked = _check_ssrf(new_url)
+                if blocked:
+                    return f"重定向目标被拦截: {blocked}"
+                resp = await client.request(method, new_url, headers=headers, json=json_body, content=data_body)
+            body = resp.text[:MAX_BODY]
+            if len(resp.text) > MAX_BODY:
+                body += f"\n... (响应体过长已截断，剩余 {len(resp.text) - MAX_BODY} 字符)"
+            return f"HTTP {resp.status_code}\n{body}"
+
+    async def execute(self, url: str, headers: dict = None, timeout: float = 15) -> str:
+        self.timeout = timeout or self.timeout
+        try:
+            return await self._request("GET", url, headers or {})
+        except Exception as e:
+            return f"HTTP 请求失败: {e}"
+
+
 class ToolRegistry:
     """工具注册中心，负责管理和执行所有工具"""
     def __init__(self, knowledge_base=None, tool_config=None, workspace_dir: str = "."):
@@ -382,6 +429,7 @@ class ToolRegistry:
         if knowledge_base is not None:
             self.register(SearchKnowledgeTool(knowledge_base))
         # 注册更多工具（配置驱动）
+        self.register(HttpGetTool())
         tc = tool_config or {}
         ws = tc.get("web_search") or {}
         if ws.get("api_key"):

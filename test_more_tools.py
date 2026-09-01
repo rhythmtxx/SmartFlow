@@ -4,9 +4,10 @@
 """
 import asyncio
 import socket
+import httpx
 from unittest.mock import patch
 
-from core.tools import _check_ssrf, ToolRegistry, WebSearchTool
+from core.tools import _check_ssrf, ToolRegistry, WebSearchTool, HttpGetTool
 
 
 def fake_getaddrinfo(host, port):
@@ -67,6 +68,53 @@ def test_web_search_registered_with_config():
     assert "web_search" in reg.tools
 
 
+# ---- http_get ----
+
+def test_http_get_ssrf_blocked():
+    tool = HttpGetTool()
+    result = asyncio.run(tool.execute(url="http://127.0.0.1/"))
+    assert "SSRF" in result, result
+
+
+def test_http_get_success_and_404():
+    async def _run():
+        tool = HttpGetTool()
+        with patch.object(httpx, "AsyncClient", return_value=httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda req: httpx.Response(200, text="hello world" * 5000)))):
+            ok = await tool.execute(url="https://api.github.com/")
+        assert "200" in ok and "hello world" in ok and "截断" in ok, ok[:200]
+        with patch.object(httpx, "AsyncClient", return_value=httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda req: httpx.Response(404, text="nope")))):
+            nf = await tool.execute(url="https://api.github.com/")
+        assert "404" in nf, nf
+    asyncio.run(_run())
+
+
+def test_http_get_redirect_to_internal_blocked():
+    async def _run():
+        tool = HttpGetTool()
+        with patch.object(httpx, "AsyncClient", return_value=httpx.AsyncClient(
+                transport=httpx.MockTransport(lambda req: httpx.Response(
+                    302, headers={"location": "http://127.0.0.1/"})))):
+            result = await tool.execute(url="https://api.github.com/")
+        assert "重定向目标被拦截" in result and "SSRF" in result, result
+    asyncio.run(_run())
+
+
+def test_http_get_timeout():
+    async def _run():
+        tool = HttpGetTool()
+
+        def raise_timeout(req):
+            raise httpx.ReadTimeout("t")
+
+        with patch.object(httpx, "AsyncClient", return_value=httpx.AsyncClient(
+                transport=httpx.MockTransport(raise_timeout))):
+            result = await tool.execute(url="https://api.github.com/")
+        assert "超时" in result or "失败" in result, result
+    asyncio.run(_run())
+
+
 def main():
     test_ssrf_blocked()
     print("✓ SSRF 拦截用例通过")
@@ -78,6 +126,14 @@ def main():
     print("✓ web_search 格式化输出通过")
     test_web_search_registered_with_config()
     print("✓ web_search 配置注册通过")
+    test_http_get_ssrf_blocked()
+    print("✓ http_get SSRF 拦截通过")
+    test_http_get_success_and_404()
+    print("✓ http_get 200/404 与截断通过")
+    test_http_get_redirect_to_internal_blocked()
+    print("✓ http_get 重定向 SSRF 拦截通过")
+    test_http_get_timeout()
+    print("✓ http_get 超时错误处理通过")
     print("更多工具测试: 全部通过")
 
 
