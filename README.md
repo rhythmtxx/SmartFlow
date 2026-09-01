@@ -66,6 +66,7 @@ SmartFlow 是一个**模块化 AI Agent 框架**，基于 ReAct（Reasoning + Ac
 | **评估集** | mock/real 双模式端到端任务，成功率 / 轮数 / token 报告 |
 | **可观测性** | 工具调用时间线 + token 明细 + 成本估算（`/api/stats`） |
 | **安全防护** | Shell 黑名单 + 执行超时 + 输出截断 + 可选接口鉴权 |
+| **更多工具** | `web_search`（Tavily 联网检索）+ `http_get`/`http_post`（SSRF 防护强制）+ `code_exec`（Docker 隔离沙箱，`--network=none` + 资源限制，高风险工具自动 HITL 审批） |
 
 ## 🏗️ 核心架构
 
@@ -376,7 +377,7 @@ python test_hitl.py
 - [x] **评估集（Eval）** — 已实现：mock/real 双模式 + 成功率报告 ✅
 - [x] **可观测性面板** — 已实现：token 明细 + 成本估算 + 工具调用时间线 ✅
 - [x] **上下文压缩** — 已实现：超窗口历史用 LLM 摘要注入 system prompt ✅
-- [ ] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
+- [x] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
 - [ ] **前端工程化** — 迁移到 React/Vite，组件化 + 测试
 
 ---

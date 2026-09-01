@@ -8,6 +8,13 @@
 ## [Unreleased]
 
 ### Added
+- **更多工具**：Agent 新增 4 个工具，扩展外部世界访问能力
+  - `web_search`（low）：Tavily 联网检索，返回标题/链接/摘要列表；Key 走 `tools.web_search.api_key` 或环境变量 `WEB_SEARCH_API_KEY`（不落日志、不进 tool 参数）；未配置 Key 时工具返回明确提示
+  - `http_get`（medium）：只读 HTTP GET，响应体截断 20KB；**SSRF 防护强制**（解析后校验 IP，拦截回环/私网/链路本地/保留地址，含 IPv6），`follow_redirects=False` + 手动重定向重新校验
+  - `http_post`（high）：JSON/表单提交外部 URL，复用 SSRF 防护；有副作用，执行前自动触发 HITL 人工审批
+  - `code_exec`（high）：Docker 隔离沙箱执行 Python 代码（`--network=none` 网络隔离 + `--memory=256m/--cpus=1/--pids-limit=128` 资源限制 + `--rm` 无持久化，仅挂载 `workspace/outputs` 到 `/sandbox`）；超时强制终止；无 Docker 环境返回提示；执行前自动触发 HITL 人工审批
+  - 配置注入：`config.yaml` 新增 `tools` 段（`web_search.api_key` / `code_exec.enabled` / `code_exec.docker_image`），环境变量优先，经 `SessionManager` → `build_shared(tool_config=...)` 注入（向后兼容）
+  - 新增测试 `test_more_tools.py`：SSRF 单元测试（mock DNS）+ 工具 mock 测试（MockTransport）+ 高风险工具 HITL 链集成测试（ScriptedClient）
 - **上下文压缩**：超过 24 条活跃消息时，把最早一批完整轮次（≤10 条，按轮次边界截止，不切孤儿 tool）交给 LLM 压缩成 ≤300 字摘要
   - SQLite 新增 `summaries` 表（按 `session_id` 隔离）；先写摘要、成功后再删原文，失败兜底不删任何消息、不阻塞对话
   - 摘要注入 `build_system_prompt` 的「早前对话摘要」段，与窗口截断并行——窗口外早期上下文不再丢失
