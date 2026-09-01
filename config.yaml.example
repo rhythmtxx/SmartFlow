@@ -34,3 +34,14 @@ server:
   # 生产环境推荐用环境变量 SMARTFLOW_API_TOKEN（不落盘）。
   # 留空 = 不鉴权（本地演示模式）。
   api_token: ""
+
+tools:
+  # web_search（Tavily）API Key。也可用环境变量 WEB_SEARCH_API_KEY（优先，推荐）。
+  # 未配置时工具仍会出现在工具列表，但执行时返回配置提示。
+  web_search:
+    api_key: ""
+  # code_exec：Docker 隔离沙箱执行 Python 代码（--network=none + 资源限制 + 只挂 outputs）。
+  # 本机未安装 Docker 时工具返回「需要 Docker 环境」提示；enabled=false 直接禁用。
+  code_exec:
+    enabled: true
+    docker_image: "python:3.11-slim"

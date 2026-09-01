@@ -191,6 +191,15 @@ def test_high_risk_code_exec_triggers_approval():
     asyncio.run(_run())
 
 
+# ---- 配置注入与注册（/api/status）----
+
+def test_status_lists_new_tools():
+    from app import manager
+    status = manager.get_status()
+    names = {t["name"] for t in status["tools"]}
+    assert {"web_search", "http_get", "http_post", "code_exec"} <= names, names
+
+
 def main():
     test_ssrf_blocked()
     print("✓ SSRF 拦截用例通过")
@@ -220,6 +229,8 @@ def main():
     print("✓ code_exec 禁用提示通过")
     test_high_risk_code_exec_triggers_approval()
     print("✓ code_exec 高风险 HITL 审批链路通过")
+    test_status_lists_new_tools()
+    print("✓ /api/status 列出全部新工具通过")
     print("更多工具测试: 全部通过")
 
 

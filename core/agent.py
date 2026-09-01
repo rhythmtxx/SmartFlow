@@ -69,13 +69,15 @@ class TinyAgent:
 
     @staticmethod
     def build_shared(workspace_dir: str, openai_api_key: str = None,
-                     base_url: str = None, model: str = "gpt-4o-mini") -> Dict[str, Any]:
+                     base_url: str = None, model: str = "gpt-4o-mini",
+                     tool_config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         构建全局共享的组件（只构建一次，多个会话复用）：
         - LLM 客户端（无状态）
         - 技能加载器（只读）
         - 知识库（只读，embedding 模型本身是模块级懒加载单例）
         - 工具注册中心（只读）
+        :param tool_config: config.yaml 的 tools 段（web_search.api_key / code_exec.*），默认 None
         """
         api_key = openai_api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
@@ -88,7 +90,7 @@ class TinyAgent:
         client = AsyncOpenAI(**api_kwargs)
         skills = SkillsLoader(workspace_dir)
         knowledge = KnowledgeBase(workspace_dir)
-        tools = ToolRegistry(knowledge_base=knowledge)
+        tools = ToolRegistry(knowledge_base=knowledge, tool_config=tool_config, workspace_dir=workspace_dir)
 
         return {
             "client": client,

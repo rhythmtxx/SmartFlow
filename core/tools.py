@@ -510,8 +510,8 @@ class ToolRegistry:
         self.register(HttpPostTool())
         tc = tool_config or {}
         ws = tc.get("web_search") or {}
-        if ws.get("api_key"):
-            self.register(WebSearchTool(api_key=ws["api_key"]))
+        # 无条件注册：未配置 Key 时工具仍出现，执行时返回明确提示
+        self.register(WebSearchTool(api_key=ws.get("api_key", "")))
         ce = tc.get("code_exec") or {}
         if ce.get("enabled", True):
             self.register(CodeExecTool(enabled=True, docker_image=ce.get("docker_image", "python:3.11-slim"),

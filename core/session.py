@@ -29,13 +29,15 @@ _SESSION_ID_RE = "^[a-zA-Z0-9_-]{1,64}$"
 class SessionManager:
     def __init__(self, workspace_dir: str, openai_api_key: str = None,
                  base_url: str = None, model: str = "gpt-4o-mini",
-                 pricing: Optional[Dict] = None):
+                 pricing: Optional[Dict] = None, tool_config: Optional[Dict] = None):
         self.workspace_dir = workspace_dir
         self.openai_api_key = openai_api_key
         self.base_url = base_url
         self.model = model
         # 成本估算价格：{"prompt": 每千token元, "completion": 每千token元}
         self.pricing = pricing or {}
+        # 更多工具配置（config.yaml tools 段）：web_search.api_key / code_exec.*
+        self.tool_config = tool_config
 
         self._shared: Optional[Dict] = None
         self._sessions: Dict[str, TinyAgent] = {}
@@ -49,7 +51,8 @@ class SessionManager:
         """获取全局共享组件（懒构建一次）。"""
         if self._shared is None:
             self._shared = TinyAgent.build_shared(
-                self.workspace_dir, self.openai_api_key, self.base_url, self.model
+                self.workspace_dir, self.openai_api_key, self.base_url, self.model,
+                tool_config=self.tool_config
             )
         return self._shared
 

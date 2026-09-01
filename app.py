@@ -25,6 +25,7 @@ else:
 
 llm_config = config.get("llm", {})
 server_config = config.get("server", {})
+tools_config = config.get("tools", {})
 
 api_key   = os.environ.get("LLM_API_KEY")   or llm_config.get("api_key")
 base_url  = os.environ.get("LLM_BASE_URL")  or llm_config.get("base_url")
@@ -37,6 +38,12 @@ llm_pricing = llm_config.get("pricing", {})
 # 未配置时鉴权关闭（本地演示模式）；配置后所有 /api/* 接口需要 Authorization: Bearer <token>
 api_token = os.environ.get("SMARTFLOW_API_TOKEN") or server_config.get("api_token", "")
 
+# 更多工具配置（config.yaml tools 段）：环境变量优先于配置文件
+#  - web_search: WEB_SEARCH_API_KEY 优先，其次 tools.web_search.api_key
+web_search_key = os.environ.get("WEB_SEARCH_API_KEY") or (tools_config.get("web_search") or {}).get("api_key", "")
+if web_search_key:
+    tools_config.setdefault("web_search", {})["api_key"] = web_search_key
+
 workspace_path = "./workspace"
 outputs_path = os.path.join(workspace_path, "outputs")
 os.makedirs(outputs_path, exist_ok=True)
@@ -48,7 +55,8 @@ manager = SessionManager(
     openai_api_key=api_key,
     base_url=base_url,
     model=model,
-    pricing=llm_pricing
+    pricing=llm_pricing,
+    tool_config=tools_config
 )
 
 # 会话 ID 校验：仅允许字母数字与 -_（用于路径参数，防注入）
