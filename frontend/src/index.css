@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-cyber-blue: #00f0ff;
+  --color-cyber-green: #00ffa3;
+  --color-cyber-purple: #b000ff;
+  --color-cyber-dark: #050505;
+  --color-cyber-panel: rgba(20, 20, 22, 0.75);
+  --color-cyber-border: #27272a;
+
+  --animate-radar-spin: radar 3s linear infinite;
+  --animate-pulse-glow: glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-slide-up: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  @keyframes radar {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes glow {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+    }
+    50% {
+      opacity: 0.5;
+      box-shadow: 0 0 2px rgba(0, 240, 255, 0.2);
+    }
+  }
+  @keyframes slideUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ---- 以下为从 static/index.html <style> 块（原 61-179 行）迁移的自定义样式 ---- */
+
+body {
+  background-color: #050505;
+  color: #e4e4e7;
+  /* Subtle dot pattern background */
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Custom Scrollbar for HUD feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #52525b;
+}
+
+.glass-panel {
+  background: rgba(15, 15, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid #27272a;
+}
+
+.hud-border {
+  border: 1px solid #27272a;
+  position: relative;
+}
+
+/* Corner accents to look like a high-tech terminal */
+.hud-border::before,
+.hud-border::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 1px solid #00f0ff;
+  pointer-events: none;
+}
+
+.hud-border::before {
+  top: -1px;
+  left: -1px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.hud-border::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: none;
+  border-top: none;
+}
+
+/* Assistant Message Styling */
+.prose {
+  color: #d4d4d8;
+}
+
+.prose strong {
+  color: #f4f4f5;
+  font-weight: 600;
+}
+
+.prose pre {
+  background-color: #121214 !important;
+  border: 1px solid #2a2a30;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  color: #a1a1aa;
+}
+
+.prose code {
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 4px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.875em;
+}
+
+.prose pre code {
+  color: inherit;
+  background: none;
+  padding: 0;
+}
+
+.chat-bubble-ai {
+  border-left: 2px solid #00f0ff;
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.05) 0%, transparent 100%);
+}
+
+.chat-bubble-user {
+  background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
+  border: 1px solid #3f3f46;
+}
+
+.tool-indicator {
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Input styling */
+.cyber-input:focus-within {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+  border-color: rgba(0, 240, 255, 0.5);
+}

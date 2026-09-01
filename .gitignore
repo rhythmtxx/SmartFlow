@@ -36,3 +36,6 @@ hello
 venv/
 .venv/
 env/
+
+# 前端 npm 本地缓存（本机沙箱禁止写 AppData 用户目录，重定向到工作区）
+.npm-cache/
