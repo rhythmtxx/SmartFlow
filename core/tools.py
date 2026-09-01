@@ -3,7 +3,39 @@ import json
 import asyncio
 import re
 import uuid
+import ipaddress
+import socket
+from urllib.parse import urlparse
 from typing import Dict, Any, Callable, List
+
+# ponytail: DNS rebinding 窗口（校验后到连接前 IP 可能变化）未消除；
+# 如需彻底防御需自定义 httpx transport 锁定解析 IP，等真实威胁出现再加。
+BLOCKED_NETWORKS = [
+    ipaddress.ip_network(n) for n in [
+        "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8",
+        "169.254.0.0/16", "172.16.0.0/12", "192.0.0.0/24", "192.168.0.0/16",
+        "198.18.0.0/15", "224.0.0.0/4", "240.0.0.0/4",
+        "::/128", "::1/128", "fc00::/7", "fe80::/10", "ff00::/8",
+    ]
+]
+
+def _check_ssrf(url: str) -> str | None:
+    """返回拦截原因字符串；None 表示放行。解析后校验 IP（不是字符串匹配）。"""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return f"仅支持 http/https，禁止 {parsed.scheme}"
+    host = parsed.hostname or ""
+    if not host:
+        return "URL 缺少主机名"
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except Exception:
+        return f"无法解析域名: {host}"
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if any(ip in net for net in BLOCKED_NETWORKS):
+            return f"目标地址 {ip} 属于内网/保留地址，已拦截（SSRF 防护）"
+    return None
 
 class BaseTool:
     """
