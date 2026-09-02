@@ -16,6 +16,7 @@
   <img src="https://img.shields.io/badge/LLM-OpenAI%20Compatible-412991?style=flat-square&logo=openai" alt="LLM" />
   <img src="https://img.shields.io/badge/feature-HITL%20Approval-ff6b35?style=flat-square" alt="HITL" />
   <img src="https://img.shields.io/badge/feature-RAG-00c853?style=flat-square" alt="RAG" />
+  <img src="https://github.com/rhythmtxx/SmartFlow/actions/workflows/ci.yml/badge.svg" alt="CI" />
 </p>
 
 ---
@@ -187,6 +188,23 @@ python eval/run_eval.py --task shell_echo  # 只跑指定任务
 | 前端 | React 19 + Vite + TypeScript + Tailwind v4（`frontend/`，构建产物由 FastAPI 伺服） |
 | 测试 | test_hitl.py / test_rag.py + 评估集 run_eval.py |
 | 部署 | Docker / docker-compose |
+
+## 📸 界面预览
+
+> 截图占位：将运行截图放入 `docs/screenshots/` 后在此引用。
+> 生成方式：启动服务（见下）→ 浏览器访问 `http://localhost:8000` → 分别对以下场景截图。
+
+| 场景 | 截图文件（建议命名） |
+|---|---|
+| 主界面 + 会话面板 + 遥测面板 | `docs/screenshots/main.png` |
+| SSE 流式回复渲染 | `docs/screenshots/stream.png` |
+| HITL 审批弹窗（执行高风险命令时） | `docs/screenshots/approval.png` |
+
+替换下方占位即可展示：
+
+```markdown
+![主界面](docs/screenshots/main.png)
+```
 
 ## 🚀 快速开始
 
@@ -397,6 +415,10 @@ python test_hitl.py
 - [x] **上下文压缩** — 已实现：超窗口历史用 LLM 摘要注入 system prompt ✅
 - [x] **更多工具** — Web 搜索、HTTP 请求、代码执行沙箱
 - [x] **前端工程化** — 迁移到 React/Vite，组件化 + 测试（2026-09-01）
+
+## 📜 License
+
+[MIT](./LICENSE)
 
 ---
 

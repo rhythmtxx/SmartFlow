@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # 核心测试不需要 chromadb/sentence-transformers（懒加载），不装 torch 保持 CI 快速
+      - name: Install core dependencies
+        run: pip install openai fastapi uvicorn pydantic jinja2 pyyaml httpx
+
+      - name: Run HITL tests
+        run: python test_hitl.py
+
+      - name: Run context compression tests
+        run: python test_compress.py
+
+      - name: Run more-tools tests
+        run: python test_more_tools.py
+
+      - name: Run eval harness (mock mode)
+        run: python eval/run_eval.py
+
+      # ubuntu runner 自带 Docker：真实验证 code_exec 沙箱执行路径
+      - name: Verify code_exec Docker sandbox (real execution)
+        run: |
+          python - <<'EOF'
+          import asyncio, sys
+          sys.path.insert(0, ".")
+          from core.tools import CodeExecTool
+
+          async def main():
+              tool = CodeExecTool(enabled=True, docker_image="python:3.11-slim", workspace_dir=".")
+              r = await tool.execute(code="print(1 + 1)")
+              assert "2" in r, f"code_exec 真实执行失败: {r!r}"
+              print("✓ code_exec Docker sandbox 真实执行 OK:", r.strip()[:60])
+
+          asyncio.run(main())
+          EOF
+
+  rag:
+    name: RAG (test_rag.py)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # test_rag 需要 chromadb + sentence-transformers（首次会下载约 120MB 模型）
+      - name: Install full dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run RAG tests
+        run: python test_rag.py
+
+  frontend:
+    name: Frontend (React/Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

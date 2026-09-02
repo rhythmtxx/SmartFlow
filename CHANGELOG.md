@@ -8,6 +8,8 @@
 ## [Unreleased]
 
 ### Added
+- **GitHub Actions CI**：三个 job——后端（HITL/压缩/更多工具/评估集 mock + code_exec Docker 沙箱真实执行验证）、RAG（test_rag）、前端（Vitest + lint + build）；README 挂 CI badge
+- **MIT License**；README「界面预览」章节（截图占位 + 生成指引，`docs/screenshots/`）
 - **前端工程化**：单文件 `static/index.html` 迁移为 `frontend/` React 19 + Vite + TypeScript 工程（组件化、类型化、可测试、可维护；功能与视觉 1:1 等价，后端 `/api/*` 零改动）
   - 12 个核心交互区全部迁移：SSE 流式聊天（判别联合事件类型 + 增量解析）、HITL 审批弹窗（60s 倒计时）、会话管理（新建/切换/删除 + localStorage 兼容 `smartflow_session_id`）、API Token（兼容 `smartflow_api_token`）、Token/成本/工具调用遥测、技能/工具/记忆/输出文件面板（轮询频率与旧版一致）
   - 技术栈：Tailwind v4 本地构建（`@theme` 迁移 cyber 色板与动画，视觉零漂移）、react-markdown（替换 CDN marked）、@fontsource 本地字体（离线可用）、React Context + hooks 状态管理（弃 Zustand）
