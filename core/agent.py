@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import AsyncGenerator, Dict, Any, Callable, Optional
+from typing import AsyncGenerator, Dict, Any, Optional
 
 from openai import AsyncOpenAI
 

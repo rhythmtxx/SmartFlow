@@ -14,6 +14,6 @@ line-length = 120
 target-version = "py311"
 
 [tool.ruff.lint]
-# 仅开启基础错误检查，避免存量代码大规模改动
-select = ["E", "F", "W", "I"]
+# 仅开启错误级检查（import 排序等格式类问题交给 ruff format / pre-commit 处理，不阻塞 CI）
+select = ["E", "F", "W"]
 ignore = ["E501"]

@@ -6,7 +6,7 @@ import uuid
 import ipaddress
 import socket
 from urllib.parse import urlparse
-from typing import Dict, Any, Callable, List
+from typing import Dict, Any, List
 
 # ponytail: DNS rebinding 窗口（校验后到连接前 IP 可能变化）未消除；
 # 如需彻底防御需自定义 httpx transport 锁定解析 IP，等真实威胁出现再加。

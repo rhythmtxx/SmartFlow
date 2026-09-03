@@ -61,7 +61,7 @@ class ContextBuilder:
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
         workspace_path = Path(self.workspace_dir).resolve().as_posix()
         
-        return f"""你名叫 SmartFlow，是一个有用的 AI 助手。 
+        return f"""你名叫 SmartFlow，是一个有用的 AI 助手。
 
 ## 当前时间
 {now} ({tz})
@@ -94,7 +94,7 @@ class ContextBuilder:
 - 回忆过去的事件：使用 grep 搜索 {workspace_path}/memory/HISTORY.md"""
 
     def build_messages(
-        self, 
+        self,
         current_user_message: str,
         media: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
