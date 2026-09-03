@@ -61,7 +61,7 @@ jobs:
 
       # test_rag 需要 chromadb + sentence-transformers（首次会下载约 120MB 模型）
       - name: Install full dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run RAG tests
         run: pytest tests/test_rag.py -p no:cacheprovider
@@ -77,7 +77,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # vitest/jsdom 链路中的 undici 需要 node >= 22（webidl.markAsUncloneable）
+          node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
