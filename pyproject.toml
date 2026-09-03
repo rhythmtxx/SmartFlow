@@ -1,0 +1,19 @@
+[project]
+name = "smartflow"
+version = "1.1.0"
+description = "轻量级 AI Agent 框架：ReAct + HITL 人工审批 + 多会话 + RAG"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# 仅开启基础错误检查，避免存量代码大规模改动
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]

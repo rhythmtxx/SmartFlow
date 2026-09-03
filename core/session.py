@@ -29,7 +29,8 @@ _SESSION_ID_RE = "^[a-zA-Z0-9_-]{1,64}$"
 class SessionManager:
     def __init__(self, workspace_dir: str, openai_api_key: str = None,
                  base_url: str = None, model: str = "gpt-4o-mini",
-                 pricing: Optional[Dict] = None, tool_config: Optional[Dict] = None):
+                 pricing: Optional[Dict] = None, tool_config: Optional[Dict] = None,
+                 agent_config: Optional[Dict] = None):
         self.workspace_dir = workspace_dir
         self.openai_api_key = openai_api_key
         self.base_url = base_url
@@ -38,6 +39,8 @@ class SessionManager:
         self.pricing = pricing or {}
         # 更多工具配置（config.yaml tools 段）：web_search.api_key / code_exec.*
         self.tool_config = tool_config
+        # Agent 运行参数（config.yaml agent 段）：max_iterations/window_size/compress_threshold/approval_timeout
+        self.agent_config = agent_config or {}
 
         self._shared: Optional[Dict] = None
         self._sessions: Dict[str, TinyAgent] = {}
@@ -68,6 +71,7 @@ class SessionManager:
                 session_id=session_id,
                 shared=self.shared_components(),
                 model=self.model,
+                agent_config=self.agent_config,
             )
             self._sessions[session_id] = agent
             self._locks[session_id] = asyncio.Lock()

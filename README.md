@@ -211,11 +211,13 @@ python eval/run_eval.py --task shell_echo  # 只跑指定任务
 ### 1. 安装依赖
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt        # 完整依赖（含 RAG）
+pip install -r requirements-core.txt   # 仅核心（不含 RAG/torch，镜像/Docker 默认）
+pip install -r requirements-dev.txt    # 开发/测试（pytest、ruff 等）
 ```
 
-> RAG 知识库功能依赖 `chromadb` 和 `sentence-transformers`（已在 requirements.txt 中）：
-> 首次使用知识库时会自动下载约 120MB 的 Embedding 模型，稍等片刻即可。
+> RAG 知识库功能依赖 `chromadb` 和 `sentence-transformers`（约 1-2GB，含 torch）：
+> 不需要知识库功能时只装 `requirements-core.txt` 即可。首次使用知识库会自动下载约 120MB 的 Embedding 模型。
 
 ### 2. 配置 LLM
 
@@ -342,13 +344,20 @@ curl http://localhost:8000/api/outputs/download/report.md \
 SmartFlow/
 ├── app.py              # FastAPI 入口，HTTP 路由 + SSE
 ├── CHANGELOG.md        # 更新日志（Keep a Changelog 规范）
-├── config.yaml.example # LLM 配置模板（复制为 config.yaml 使用）
-├── .env.example        # Docker 环境变量模板（复制为 .env 使用）
-├── requirements.txt    # Python 依赖（含 RAG：chromadb + sentence-transformers）
-├── test_hitl.py        # HITL 功能单元测试（mock，无需真实 API）
-├── test_rag.py         # RAG 知识库功能测试
+├── LICENSE             # MIT License
+├── config.yaml.example # 配置模板（llm / agent 参数 / 鉴权 / 工具 / 定价）
+├── .env.example        # Docker 环境变量模板
+├── requirements-core.txt  # 核心依赖（不含 RAG/torch，Docker 默认）
+├── requirements-rag.txt   # RAG 可选依赖（chromadb + sentence-transformers）
+├── requirements-dev.txt   # 开发/测试依赖（pytest、ruff、pre-commit）
+├── requirements.txt       # 完整依赖 = core + rag
+├── pyproject.toml         # pytest / ruff 配置
+├── .pre-commit-config.yaml # 提交前 lint/format 门禁
+├── .github/workflows/ci.yml # GitHub Actions CI（后端 pytest + ruff / RAG / 前端）
+├── tests/              # 后端 pytest 测试（HITL / RAG / 压缩 / 更多工具）
 ├── eval/               # 评估集：run_eval.py + tasks/*.json（mock/real 双模式）
 ├── 面试复习手册.md      # 代码讲解 + 面试题精讲
+├── 面试话术.md          # 项目叙事话术 + 简历写法
 ├── frontend/            # 前端工程（React + Vite + TS；npm run build 产物进 frontend/dist）
 └── core/               # 核心模块
     ├── agent.py        #   总指挥，组装所有组件（支持共享组件注入）
@@ -363,25 +372,30 @@ SmartFlow/
 
 ## 🧪 运行测试
 
-HITL 功能测试（不消耗 API 额度）：
+后端测试统一使用 **pytest**（测试文件在 `tests/`，CI 自动运行；RAG 测试需安装 `requirements-rag.txt`）：
 
 ```bash
-python test_hitl.py
+pip install -r requirements-dev.txt
+
+pytest tests/                      # 全部后端测试
+pytest tests/test_rag.py           # RAG 测试（需 chromadb + embedding 模型）
+pytest tests/ --cov                # 带覆盖率报告（需 pytest-cov）
 ```
 
-输出示例：
+前端测试（Vitest，见 `frontend/`）：
+
+```bash
+cd frontend && npm test
+```
+
+输出示例（HITL 用例）：
 
 ```
-测试场景：用户将选择 【同意】
-  [前端] 收到审批请求: 工具=exec
-  [用户] 已提交决定: 同意
-  >>> 期望执行=True, 实际执行=True -> 测试通过 ✓
-
-测试场景：用户将选择 【拒绝】
-  [前端] 收到审批请求: 工具=exec
-  [用户] 已提交决定: 拒绝
-  >>> 期望执行=False, 实际执行=False -> 测试通过 ✓
+tests/test_hitl.py::test_approve_yes_path PASSED ✓
+tests/test_hitl.py::test_approve_no_path PASSED ✓
 ```
+
+代码质量门禁（可选安装）：`pip install pre-commit && pre-commit install`（ruff lint/format + 基础检查）。
 
 ## 📡 API 接口
 

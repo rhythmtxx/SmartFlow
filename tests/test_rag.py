@@ -1,4 +1,4 @@
-"""
+﻿"""
 RAG 知识库功能测试
 不依赖真实大模型 API，直接测试 KnowledgeBase 的核心能力。
 
@@ -9,7 +9,7 @@ import asyncio
 import shutil
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.knowledge import KnowledgeBase
 from core.tools import SearchKnowledgeTool
 

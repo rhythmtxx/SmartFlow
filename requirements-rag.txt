@@ -1,0 +1,5 @@
+# RAG 知识库可选依赖（core/knowledge.py）
+# 体积大（含 torch，约 1-2GB），仅在需要知识库功能时安装：
+#   pip install -r requirements-rag.txt
+chromadb>=0.4.0
+sentence-transformers>=2.2.0

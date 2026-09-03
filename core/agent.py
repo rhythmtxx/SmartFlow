@@ -13,8 +13,7 @@ from .knowledge import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
-# 上下文压缩：活跃消息数超过该值触发压缩，单批压缩最早一批完整轮次
-COMPRESS_THRESHOLD = 24
+# 上下文压缩默认参数（config.yaml 的 agent.* 可覆盖）
 SUMMARY_MAX_CHARS = 300
 SUMMARY_ITEM_TRUNCATE = 200  # 摘要输入里单条 tool 结果截断长度
 
@@ -32,7 +31,8 @@ class TinyAgent:
     def __init__(self, workspace_dir: str, session_id: str = "default",
                  shared: Optional[Dict[str, Any]] = None,
                  openai_api_key: str = None, base_url: str = None,
-                 model: str = "gpt-4o-mini"):
+                 model: str = "gpt-4o-mini",
+                 agent_config: Optional[Dict[str, Any]] = None):
         """
         初始化 Agent。
         :param workspace_dir: 工作区目录（用于存放 skills 和 memory）
@@ -41,10 +41,15 @@ class TinyAgent:
         :param openai_api_key: OpenAI 兼容的 API Key。可使用环境变量 OPENAI_API_KEY 作为备用
         :param base_url: OpenAI 兼容接口的代理/服务地址。例如 Deepseek 的 endpoint
         :param model: 模型名
+        :param agent_config: Agent 运行参数（max_iterations/window_size/compress_threshold/approval_timeout）
         """
         self.workspace_dir = workspace_dir
         self.session_id = session_id
         os.makedirs(workspace_dir, exist_ok=True)
+
+        cfg = agent_config or {}
+        # 上下文压缩触发阈值：活跃消息数超过该值触发压缩（config 可覆盖）
+        self.compress_threshold = cfg.get("compress_threshold", 24)
 
         # 共享组件：外部传入则复用（多会话共享），否则自行构建（兼容单会话用法）
         if shared is None:
@@ -58,12 +63,15 @@ class TinyAgent:
 
         # 会话隔离状态
         self.memory = MemoryStore(workspace_dir, session_id=session_id)
-        self.context = ContextBuilder(self.memory, self.skills, workspace_dir)
+        self.context = ContextBuilder(self.memory, self.skills, workspace_dir,
+                                      window_size=cfg.get("window_size", 20))
         # 人工审批管理器（Human-in-the-Loop）：高风险工具执行前请求用户确认
         # 每个会话独立，避免跨会话互相 resolve
         self.approval_manager = ApprovalManager()
         self.loop = AgentLoop(self.client, self.tools, model=model,
-                              approval_manager=self.approval_manager)
+                              approval_manager=self.approval_manager,
+                              approval_timeout=cfg.get("approval_timeout", 60),
+                              max_iterations=cfg.get("max_iterations", 10))
         # 上下文压缩防重入标志（HTTP 层已有会话锁，这里是直接调用方的第二道防线）
         self._compressing = False
 
@@ -165,7 +173,7 @@ class TinyAgent:
             return
         self._compressing = True
         try:
-            if len(self.memory.messages) <= COMPRESS_THRESHOLD:
+            if len(self.memory.messages) <= self.compress_threshold:
                 return
             candidates = self.memory.get_compress_candidates()
             if not candidates:

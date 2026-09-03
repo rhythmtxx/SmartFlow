@@ -7,8 +7,16 @@
 
 ## [Unreleased]
 
+### Changed
+- **工程规范（第二梯队）**：
+  - 测试统一为 **pytest 结构**：测试文件迁移至 `tests/`（conftest 自动清理临时目录），支持 `pytest tests/` + 覆盖率（pytest-cov）；CI 改为 pytest 运行
+  - **配置中心化**：Agent 运行参数（`max_iterations` / `window_size` / `compress_threshold` / `approval_timeout`）从硬编码常量抽到 `config.yaml` 的 `agent` 段（不配置时行为不变）
+  - **依赖拆分**：`requirements-core.txt`（核心，不含 torch）+ `requirements-rag.txt`（RAG 可选）+ `requirements-dev.txt`（pytest/ruff/pre-commit）；`requirements.txt` = core + rag
+  - **Docker 镜像瘦身**：默认只装核心依赖（`--build-arg INSTALL_RAG=1` 启用 RAG），避免 torch 使镜像膨胀到 2GB+
+  - **ruff + pre-commit**：`.pre-commit-config.yaml`（lint/format/基础检查）+ pyproject `[tool.ruff]`；CI 增加 ruff 门禁
+
 ### Added
-- **GitHub Actions CI**：三个 job——后端（HITL/压缩/更多工具/评估集 mock + code_exec Docker 沙箱真实执行验证）、RAG（test_rag）、前端（Vitest + lint + build）；README 挂 CI badge
+- **GitHub Actions CI**：三个 job——后端（pytest + ruff + code_exec Docker 沙箱真实执行验证）、RAG（test_rag）、前端（Vitest + lint + build）；README 挂 CI badge
 - **MIT License**；README「界面预览」章节（截图占位 + 生成指引，`docs/screenshots/`）
 - **前端工程化**：单文件 `static/index.html` 迁移为 `frontend/` React 19 + Vite + TypeScript 工程（组件化、类型化、可测试、可维护；功能与视觉 1:1 等价，后端 `/api/*` 零改动）
   - 12 个核心交互区全部迁移：SSE 流式聊天（判别联合事件类型 + 增量解析）、HITL 审批弹窗（60s 倒计时）、会话管理（新建/切换/删除 + localStorage 兼容 `smartflow_session_id`）、API Token（兼容 `smartflow_api_token`）、Token/成本/工具调用遥测、技能/工具/记忆/输出文件面板（轮询频率与旧版一致）

@@ -19,17 +19,14 @@ jobs:
           cache: pip
 
       # 核心测试不需要 chromadb/sentence-transformers（懒加载），不装 torch 保持 CI 快速
-      - name: Install core dependencies
-        run: pip install openai fastapi uvicorn pydantic jinja2 pyyaml httpx
+      - name: Install dependencies
+        run: pip install -r requirements-core.txt -r requirements-dev.txt
 
-      - name: Run HITL tests
-        run: python test_hitl.py
+      - name: Lint with ruff
+        run: ruff check app.py core eval
 
-      - name: Run context compression tests
-        run: python test_compress.py
-
-      - name: Run more-tools tests
-        run: python test_more_tools.py
+      - name: Run pytest (HITL / compression / more-tools)
+        run: pytest tests/ --ignore=tests/test_rag.py -p no:cacheprovider
 
       - name: Run eval harness (mock mode)
         run: python eval/run_eval.py
@@ -67,7 +64,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run RAG tests
-        run: python test_rag.py
+        run: pytest tests/test_rag.py -p no:cacheprovider
 
   frontend:
     name: Frontend (React/Vite)

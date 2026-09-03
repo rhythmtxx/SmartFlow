@@ -15,12 +15,15 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # 先复制依赖文件，利用 Docker 层缓存
-# 只要 requirements.txt 没变，这一层不会重新构建
-COPY requirements.txt .
+# 默认只装核心依赖（不含 RAG/torch，镜像轻量）；
+# 需要知识库功能时：docker build --build-arg INSTALL_RAG=1 .
+COPY requirements-core.txt requirements-rag.txt ./
 
+ARG INSTALL_RAG=0
 # 安装依赖（--no-cache-dir 减小镜像体积）
-RUN pip install --no-cache-dir -r requirements.txt \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir -r requirements-core.txt \
+    -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    && if [ "$INSTALL_RAG" = "1" ]; then pip install --no-cache-dir -r requirements-rag.txt -i https://pypi.tuna.tsinghua.edu.cn/simple; fi
 
 # 复制项目代码
 COPY . .

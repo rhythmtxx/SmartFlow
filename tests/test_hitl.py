@@ -4,11 +4,16 @@ HITL 人工审批功能 - 后端逻辑测试
 
 测试两条核心路径：
   1. 用户同意 -> 高风险工具被执行
-  2. 用户拒绝 -> 工具被跳过，模型收到“被拒绝”消息
+  2. 用户拒绝 -> 工具被跳过，模型收到"被拒绝"消息
 
-运行： python test_hitl.py
+运行： pytest tests/test_hitl.py   （或 python tests/test_hitl.py 手动运行）
 """
 import asyncio
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from core.tools import ToolRegistry, ApprovalManager
 from core.loop import AgentLoop
 
@@ -110,6 +115,16 @@ async def run_one_case(approve_decision: bool):
     status = "通过 ✓" if tool_executed == expected else "失败 ✗"
     print(f"  >>> 期望执行={expected}, 实际执行={tool_executed} -> 测试{status}")
     return tool_executed == expected
+
+
+async def test_approve_yes_path():
+    """用户同意 -> 高风险工具被执行"""
+    assert await run_one_case(approve_decision=True)
+
+
+async def test_approve_no_path():
+    """用户拒绝 -> 工具被跳过"""
+    assert await run_one_case(approve_decision=False)
 
 
 async def main():

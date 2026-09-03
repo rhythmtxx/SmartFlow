@@ -1,0 +1,11 @@
+优化版（6 条，AI 应用开发岗向）
+SmartFlow · 轻量级 AI Agent 框架（github.com/rhythmtxx/SmartFlow） 2025.12 – 2026.04 · 独立开发
+
+基于 ReAct 模式实现 Agent 循环引擎，支持多轮推理与自主工具调用；以 max_iterations=10 循环上限、Shell 命令黑名单 + 执行超时 + 输出截断构建多层安全控制，防止死循环与危险命令执行。
+设计并实现 Human-in-the-Loop 人工审批机制：以 asyncio.Event 挂起高风险工具协程、SSE 实时推送审批请求，支持同意/拒绝/60s 超时自动拒绝，审批状态按会话隔离；Mock 测试覆盖同意、拒绝两条完整链路。
+集成 RAG 知识库：sentence-transformers 本地向量化 + ChromaDB 存储检索，实现带重叠的段落级切片（chunk 300 / overlap 50）与余弦相似度召回，Agent 可基于内部文档作答（测试中相关检索相似度 0.76+），减少幻觉。
+基于 AsyncGenerator + SSE 实现模型回复、推理过程、工具执行状态的全链路流式输出；针对流式 Tool Call 参数碎片设计 Buffer 拼接逻辑，并修复部分后端重复发送函数名导致的拼接错误，兼容 OpenAI/DeepSeek/通义千问等多后端。
+设计 SessionManager 多会话架构：无状态组件（LLM client/技能/工具/知识库）全局共享仅构建一次，记忆与审批状态按 session_id 隔离，配合每会话 asyncio.Lock 保证同会话并发串行，多用户互不污染。
+构建 Eval Harness 评估集：JSON 声明式任务 + Mock/真实 LLM 双模式，自动校验工具调用链与输出产物，输出成功率/平均轮数/token 报告（5/5 通过、平均 2.4 轮），可接入 CI 回归；并实现 /api/stats 可观测性接口，展示成本估算与工具调用时间线。
+如果投 FDE 岗，替换第 5 条或追加一条：
+独立完成前端交互（Tailwind + SSE 流式渲染）：HITL 审批弹窗、会话管理面板、Markdown 实时渲染、工具调用状态可视化，全程无构建步骤的单文件实现。

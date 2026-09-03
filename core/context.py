@@ -16,10 +16,13 @@ class ContextBuilder:
     2. 历史对话 (Short-Term Memory)
     3. User 的新一条输入
     """
-    def __init__(self, memory_store: MemoryStore, skills_loader: SkillsLoader, workspace_dir: str):
+    def __init__(self, memory_store: MemoryStore, skills_loader: SkillsLoader, workspace_dir: str,
+                 window_size: int = 20):
         self.memory = memory_store
         self.skills = skills_loader
         self.workspace_dir = workspace_dir
+        # 对话记忆窗口条数（可用 config.yaml 的 agent.window_size 覆盖）
+        self.window_size = window_size
 
     def build_system_prompt(self) -> str:
         """构建系统提示词"""
@@ -106,7 +109,7 @@ class ContextBuilder:
 
         # 过去的所有历史 (如果有，且在限制窗口内)
         # 注意: tools 和 tool result 也会保存在 history 里，用于大模型判断前置状态
-        history_msgs = self.memory.get_messages(window_size=20)
+        history_msgs = self.memory.get_messages(window_size=self.window_size)
         messages.extend(history_msgs)
 
         # 当前轮次用户的输入，追加到 Payload 末尾

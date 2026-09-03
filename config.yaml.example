@@ -35,6 +35,13 @@ server:
   # 留空 = 不鉴权（本地演示模式）。
   api_token: ""
 
+agent:
+  # Agent 运行参数（不配置时使用默认值，与本文件示例一致）
+  max_iterations: 10    # 单轮对话最大工具调用轮数（防死循环）
+  window_size: 20       # 发送给模型的最近消息条数（对话记忆窗口）
+  compress_threshold: 24  # 上下文压缩触发阈值：活跃消息超过该值时压缩最早完整轮次
+  approval_timeout: 60  # HITL 审批超时（秒）：超时自动拒绝
+
 tools:
   # web_search（Tavily）API Key。也可用环境变量 WEB_SEARCH_API_KEY（优先，推荐）。
   # 未配置时工具仍会出现在工具列表，但执行时返回配置提示。

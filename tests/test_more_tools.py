@@ -1,4 +1,4 @@
-"""更多工具（web_search / http_get / http_post / code_exec）测试。
+﻿"""更多工具（web_search / http_get / http_post / code_exec）测试。
 
 运行： D:\mytools\miniforge3\envs\smartflow\python.exe test_more_tools.py
 """

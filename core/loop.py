@@ -22,13 +22,16 @@ class AgentLoop:
     6. 对高风险工具（risk_level=high）执行前触发人工审批（Human-in-the-Loop）
     """
     def __init__(self, client: AsyncOpenAI, tool_registry: ToolRegistry, model: str = "gpt-4o-mini",
-                 approval_manager: Optional[ApprovalManager] = None, approval_timeout: int = 60):
+                 approval_manager: Optional[ApprovalManager] = None, approval_timeout: int = 60,
+                 max_iterations: int = 10):
         self.client = client
         self.tool_registry = tool_registry
         self.model = model
         # 审批管理器：为空则不启用人工审批（向后兼容）
         self.approval_manager = approval_manager
         self.approval_timeout = approval_timeout
+        # 防止无限死循环调用工具的防御阈值（可用 config.yaml 的 agent.max_iterations 覆盖）
+        self.max_iterations = max_iterations
 
     async def run(self, messages: list[Dict[str, Any]]) -> AsyncGenerator[Dict[str, Any], None]:
         """
@@ -40,7 +43,7 @@ class AgentLoop:
         }
         """
         current_messages = list(messages)
-        max_iterations = 10  # 防止无限死循环调用工具的防御阈值
+        max_iterations = self.max_iterations
         iteration = 0
         tools_def = self.tool_registry.get_definitions()
 

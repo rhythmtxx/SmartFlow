@@ -1,4 +1,4 @@
-"""
+﻿"""
 上下文压缩功能测试
 不依赖真实大模型 API：单元测试直测 MemoryStore 数据层，
 集成测试用 FakeClient 模拟流式对话 + 非流式摘要调用。
@@ -10,7 +10,7 @@ import os
 import shutil
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.memory import MemoryStore
 from core.agent import TinyAgent

@@ -26,6 +26,7 @@ else:
 llm_config = config.get("llm", {})
 server_config = config.get("server", {})
 tools_config = config.get("tools", {})
+agent_config = config.get("agent", {})
 
 api_key   = os.environ.get("LLM_API_KEY")   or llm_config.get("api_key")
 base_url  = os.environ.get("LLM_BASE_URL")  or llm_config.get("base_url")
@@ -56,7 +57,8 @@ manager = SessionManager(
     base_url=base_url,
     model=model,
     pricing=llm_pricing,
-    tool_config=tools_config
+    tool_config=tools_config,
+    agent_config=agent_config
 )
 
 # 会话 ID 校验：仅允许字母数字与 -_（用于路径参数，防注入）
